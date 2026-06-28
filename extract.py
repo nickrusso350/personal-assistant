@@ -2,12 +2,16 @@ import anthropic
 import json
 from datetime import date
 
-# ─── 1. The inputs ──────────────────────────────────────────────
-message = """Smith Dental Inst.: Nicholas has an appt on Jul 10 at 1:00 PM. If you have any questions call (813) 555-0055. STOP=EndMsgs"""
 
-today = date.today().isoformat()
+# ─── The extraction brain ───────────────────────────────────────
+def extract_commitment(message):
+    """Take one message string, return the commitment as a dict.
 
-prompt = """You are a precise data-extraction tool. Extract commitment information from the message below and return it as a single JSON object.
+    Returns a dict with keys: type, what, date, time, action_needed.
+    """
+    today = date.today().isoformat()
+
+    prompt = """You are a precise data-extraction tool. Extract commitment information from the message below and return it as a single JSON object.
 
 Today's date is {today}. Use it as the anchor for any relative date reasoning.
 
@@ -31,24 +35,25 @@ Message:
 {message}
 \"\"\"""".format(message=message, today=today)
 
-# ─── 2. Send to Claude ──────────────────────────────────────────
-client = anthropic.Anthropic()
+    client = anthropic.Anthropic()
 
-response = client.messages.create(
-    model="claude-sonnet-4-6",
-    max_tokens=300,
-    messages=[
-        {"role": "user", "content": prompt}
-    ],
-)
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=300,
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+    )
 
-# ─── 3. Get the answer back ─────────────────────────────────────
-raw_output = response.content[0].text
+    raw_output = response.content[0].text
+    return json.loads(raw_output)
 
-# ─── 4. Show it ─────────────────────────────────────────────────
-print("--- RAW OUTPUT FROM CLAUDE ---")
-print(raw_output)
 
-print("\n--- PARSED AS PYTHON ---")
-parsed = json.loads(raw_output)
-print(parsed)
+# ─── Standalone test ────────────────────────────────────────────
+if __name__ == "__main__":
+    message = """Smith Dental Inst.: Nicholas has an appt on Jul 10 at 1:00 PM. If you have any questions call (813) 555-0055. STOP=EndMsgs"""
+
+    parsed = extract_commitment(message)
+
+    print("--- PARSED COMMITMENT ---")
+    print(parsed)
