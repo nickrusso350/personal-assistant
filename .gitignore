@@ -9,3 +9,7 @@ venv/
 
 # macOS
 .DS_Store
+
+# Google OAuth
+client_secret_*.json
+token.json
