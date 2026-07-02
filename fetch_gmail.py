@@ -62,6 +62,14 @@ def extract_body(payload):
     raise SystemExit("No readable text/plain or text/html part found in this message.")
 
 
+def get_header(payload, name):
+    """Return the value of a named header (Subject, From, ...) or None."""
+    for header in payload.get("headers", []):
+        if header.get("name", "").lower() == name.lower():
+            return header.get("value")
+    return None
+
+
 def fetch_one_message(service, query):
     """Find the single newest message matching the query and return its payload."""
     results = service.users().messages().list(
@@ -77,13 +85,48 @@ def fetch_one_message(service, query):
     return message["payload"]
 
 
+def fetch_recent_messages(service, query, max_results=25):
+    """Return a list of recent messages matching the query.
+
+    Each item is a dict: {"subject", "sender", "body"}.
+    An unreadable message gets body=None instead of killing the run.
+    Returns an empty list if nothing matches.
+    """
+    results = service.users().messages().list(
+        userId="me", q=query, maxResults=max_results
+    ).execute()
+    found = results.get("messages", [])
+
+    messages = []
+    for item in found:
+        message = service.users().messages().get(
+            userId="me", id=item["id"], format="full"
+        ).execute()
+        payload = message["payload"]
+        try:
+            body = extract_body(payload)
+        except SystemExit:
+            body = None
+        messages.append({
+            "subject": get_header(payload, "Subject"),
+            "sender": get_header(payload, "From"),
+            "body": body,
+        })
+    return messages
+
+
 if __name__ == "__main__":
     query = input("Gmail search query: ").strip()
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
-    payload = fetch_one_message(service, query)
-    body = extract_body(payload)
-    print("----- MESSAGE BODY -----")
-    print(body)
-    print("----- EXTRACTED -----")
-    print(extract_commitment(body))
+    messages = fetch_recent_messages(service, query)
+
+    print(f"----- FOUND {len(messages)} MESSAGE(S) -----")
+    for i, msg in enumerate(messages, 1):
+        print(f"\n[{i}] From: {msg['sender']}")
+        print(f"    Subject: {msg['subject']}")
+        if msg["body"] is None:
+            print("    Body: <unreadable — no text/plain or text/html part>")
+        else:
+            preview = " ".join(msg["body"].split())[:100]
+            print(f"    Body: {preview}...")
