@@ -13,3 +13,4 @@ venv/
 # Google OAuth
 client_secret_*.json
 token.json
+state.json
