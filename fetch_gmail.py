@@ -109,6 +109,7 @@ def fetch_recent_messages(service, query, max_results=25):
             "subject": get_header(payload, "Subject"),
             "sender": get_header(payload, "From"),
             "body": body,
+            "id": item["id"],
         })
     return messages
 
