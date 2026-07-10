@@ -86,7 +86,7 @@ def fetch_one_message(service, query):
 def fetch_recent_messages(service, query, max_results=25):
     """Return a list of recent messages matching the query.
 
-    Each item is a dict: {"subject", "sender", "body"}.
+    Each item is a dict: {"subject", "sender", "body", "id"}.
     An unreadable message gets body=None instead of killing the run.
     Returns an empty list if nothing matches.
     """

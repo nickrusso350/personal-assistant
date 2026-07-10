@@ -2,64 +2,108 @@ from datetime import date
 from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
 from extract import extract_commitments
+from state import load_state, save_state
 
 QUERY = "newer_than:2d"
 MAX_RESULTS = 25
+STATE_FILE = "state.json"
 
-def build_digest(messages):
-    """Run the extraction brain over fetched messages.
-    Returns (commitments, skipped_count, failed_subjects).
+def process_messages(messages, state, today):
+    """Fold newly fetched messages into state["commitments"].
+
+    Returns (skipped, extracted, failed) counts:
+      - skipped: messages already processed or with no readable body
+      - extracted: messages successfully run through the extraction brain
+      - failed: list of subjects whose extraction raised
     """
-    commitments = []
+    processed = state["processed_message_ids"]
+    commitments = state["commitments"]
     skipped = 0
+    extracted = 0
     failed = []
     for msg in messages:
+        # Already handled on a previous run — never re-extract.
+        if msg["id"] in processed:
+            skipped += 1
+            continue
         if msg["body"] is None:
             skipped += 1
             continue
         try:
             results = extract_commitments(msg["body"])
         except Exception:
+            # Leave the id out of processed_message_ids so a future run retries.
             failed.append(msg["subject"] or "(no subject)")
             continue
-        # extract_commitments returns a list; fold each commitment in,
-        # stamping the source message onto every one. An empty list adds
-        # nothing, so messages with no commitment simply contribute nothing.
-        for commitment in results:
-            commitment["subject"] = msg["subject"]
-            commitment["sender"] = msg["sender"]
-            commitments.append(commitment)
-    # Sort by date ascending; undated commitments go last.
-    commitments.sort(key=lambda c: c["date"] if c.get("date") else "9999-99-99")
-    return commitments, skipped, failed
+        # Extraction succeeded: remember the message and fold in every commitment.
+        processed.append(msg["id"])
+        extracted += 1
+        for position, commitment in enumerate(results):
+            key = f"{msg['id']}:{position}"
+            # Never overwrite an existing record — its status/dates are canonical.
+            if key in commitments:
+                continue
+            record = {
+                "id": key,
+                "status": "open",
+                "first_seen": today,
+                "resolved_on": None,
+            }
+            # Fold in all extraction fields, plus source message context.
+            record.update(commitment)
+            record["subject"] = msg["subject"]
+            record["sender"] = msg["sender"]
+            commitments[key] = record
+    return skipped, extracted, failed
+
+def render_digest(commitments, today):
+    """Print all open commitments, sorted by date (undated last).
+    Flags any open commitment whose date is before today as OVERDUE.
+    Never mutates status.
+    """
+    open_items = [c for c in commitments.values() if c["status"] == "open"]
+    open_items.sort(key=lambda c: c["date"] if c.get("date") else "9999-99-99")
+    if not open_items:
+        print("No open commitments.")
+        return
+    print("--- COMMITMENTS ---")
+    for i, c in enumerate(open_items, 1):
+        when = c["date"] or "no date"
+        if c["time"]:
+            when += f" at {c['time']}"
+        overdue = c.get("date") and c["date"] < today
+        flag = " [OVERDUE]" if overdue else ""
+        print(f"[{i}] ({c['type']}) {c['what']} — {when}{flag}")
+        if c["action_needed"]:
+            print(f"    Action: {c['action_needed']}")
+        print(f"    From: {c['sender']} — {c['subject']}")
 
 if __name__ == "__main__":
-    print(f"Daily digest — {date.today().isoformat()}")
+    today = date.today().isoformat()
+    print(f"Daily digest — {today}")
     print(f"Query: {QUERY}\n")
+
+    state = load_state(STATE_FILE)
+    # fresh_state() seeds commitments as an empty list; we key records by
+    # "<messageID>:<position>", so normalize to a dict on first use.
+    if not isinstance(state["commitments"], dict):
+        state["commitments"] = {}
+
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
     messages = fetch_recent_messages(service, QUERY, MAX_RESULTS)
-    if not messages:
-        print("No messages found in this window. Nothing to digest.")
-        raise SystemExit(0)
-    commitments, skipped, failed = build_digest(messages)
-    if commitments:
-        print("--- COMMITMENTS ---")
-        for i, c in enumerate(commitments, 1):
-            when = c["date"] or "no date"
-            if c["time"]:
-                when += f" at {c['time']}"
-            print(f"[{i}] ({c['type']}) {c['what']} — {when}")
-            if c["action_needed"]:
-                print(f"    Action: {c['action_needed']}")
-            print(f"    From: {c['sender']} — {c['subject']}")
-    else:
-        print("No commitments found in this window.")
+
+    skipped, extracted, failed = process_messages(messages, state, today)
+    render_digest(state["commitments"], today)
+
+    save_state(state, STATE_FILE)
+
+    open_total = sum(1 for c in state["commitments"].values() if c["status"] == "open")
     print(f"\n--- RUN SUMMARY ---")
     print(f"Messages fetched: {len(messages)}")
-    print(f"Commitments found: {len(commitments)}")
-    print(f"Unreadable (skipped): {skipped}")
-    if failed:
-        print(f"Extraction failures: {len(failed)}")
-        for subj in failed:
-            print(f"  - {subj}")
+    print(f"Skipped (already processed / unreadable): {skipped}")
+    print(f"Newly extracted: {extracted}")
+    print(f"Extraction failures: {len(failed)}")
+    for subj in failed:
+        print(f"  - {subj}")
+    print(f"Total open in state: {open_total}")
