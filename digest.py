@@ -7,6 +7,7 @@ from state import load_state, save_state
 QUERY = "newer_than:2d"
 MAX_RESULTS = 25
 STATE_FILE = "state.json"
+AGING_THRESHOLD_DAYS = 3
 
 def process_messages(messages, state, today):
     """Fold newly fetched messages into state["commitments"].
@@ -56,6 +57,52 @@ def process_messages(messages, state, today):
             commitments[key] = record
     return skipped, extracted, failed
 
+def parse_iso_date(value):
+    """Parse a model-produced date string. Anything unparseable is treated
+    as no date — never crash the digest on bad model output."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+def detect_stalls(commitments, today):
+    """Pure read over open commitments. Returns (overdue, aging).
+    overdue: list of (commitment, days_past) for dated items past due.
+    aging: list of (commitment, days_open) for DATELESS items open
+    >= AGING_THRESHOLD_DAYS. Future-dated items get no nudge.
+    Never mutates anything."""
+    today_d = date.fromisoformat(today)
+    overdue = []
+    aging = []
+    for c in commitments.values():
+        if c["status"] != "open":
+            continue
+        d = parse_iso_date(c.get("date"))
+        if d is not None:
+            if d < today_d:
+                overdue.append((c, (today_d - d).days))
+        else:
+            first_seen = parse_iso_date(c.get("first_seen"))
+            if first_seen is None:
+                continue
+            days_open = (today_d - first_seen).days
+            if days_open >= AGING_THRESHOLD_DAYS:
+                aging.append((c, days_open))
+    return overdue, aging
+
+def render_stalls(overdue, aging):
+    """Print the needs-attention block. Prints nothing if both lists are empty."""
+    if not overdue and not aging:
+        return
+    print("\n--- NEEDS ATTENTION ---")
+    for c, days_past in sorted(overdue, key=lambda t: -t[1]):
+        plural = "day" if days_past == 1 else "days"
+        print(f"[OVERDUE {days_past} {plural}] {c['what']} — was due {c['date']}")
+    for c, days_open in sorted(aging, key=lambda t: -t[1]):
+        print(f"[OPEN {days_open} days, no date] {c['what']} — still on your plate?")
+
 def render_digest(commitments, today):
     """Print all open commitments, sorted by date (undated last).
     Flags any open commitment whose date is before today as OVERDUE.
@@ -84,10 +131,6 @@ if __name__ == "__main__":
     print(f"Query: {QUERY}\n")
 
     state = load_state(STATE_FILE)
-    # fresh_state() seeds commitments as an empty list; we key records by
-    # "<messageID>:<position>", so normalize to a dict on first use.
-    if not isinstance(state["commitments"], dict):
-        state["commitments"] = {}
 
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
@@ -95,6 +138,8 @@ if __name__ == "__main__":
 
     skipped, extracted, failed = process_messages(messages, state, today)
     render_digest(state["commitments"], today)
+    overdue, aging = detect_stalls(state["commitments"], today)
+    render_stalls(overdue, aging)
 
     save_state(state, STATE_FILE)
 

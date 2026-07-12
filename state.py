@@ -12,7 +12,7 @@ def fresh_state():
     return {
         "schema_version": SCHEMA_VERSION,
         "processed_message_ids": [],
-        "commitments": [],
+        "commitments": {},
     }
 
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     print("2. Add a fake commitment and save...")
     state["processed_message_ids"].append("fake_msg_001")
-    state["commitments"].append({"id": "fake_msg_001:0", "what": "test item"})
+    state["commitments"]["fake_msg_001:0"] = {"id": "fake_msg_001:0", "what": "test item"}
     save_state(state, test_path)
     print("   OK — saved")
 
