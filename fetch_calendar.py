@@ -1,43 +1,10 @@
-import os
-import glob
 import datetime
 from zoneinfo import ZoneInfo
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from fetch_gmail import get_credentials
 
-SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/calendar.readonly",
-]
-TOKEN_FILE = "token.json"
 DEFAULT_TZ = "America/New_York"
-
-
-def get_credentials():
-    """Load saved token, or run the browser consent flow on first use."""
-    creds = None
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            cred_files = glob.glob("client_secret_*.json")
-            if not cred_files:
-                raise SystemExit("No client_secret_*.json found in this folder.")
-            if len(cred_files) > 1:
-                raise SystemExit(
-                    f"Multiple client_secret_*.json found: {cred_files}. "
-                    "Leave exactly one in this folder."
-                )
-            flow = InstalledAppFlow.from_client_secrets_file(cred_files[0], SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "w") as token:
-            token.write(creds.to_json())
-    return creds
 
 
 def _parse_endpoint(endpoint, default_tz):
