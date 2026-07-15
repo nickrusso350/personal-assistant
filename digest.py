@@ -1,6 +1,7 @@
 from datetime import date
 from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
+from fetch_calendar import fetch_upcoming_events
 from extract import extract_commitments
 from state import load_state, save_state
 
@@ -103,6 +104,22 @@ def render_stalls(overdue, aging):
     for c, days_open in sorted(aging, key=lambda t: -t[1]):
         print(f"[OPEN {days_open} days, no date] {c['what']} — still on your plate?")
 
+def render_calendar(events):
+    """Print upcoming calendar events. Purely informational — never touches
+    state. Prints a placeholder line if there are no events."""
+    print("--- COMING UP (next 7 days) ---")
+    if not events:
+        print("No upcoming events.")
+        return
+    for e in events:
+        if e["all_day"]:
+            when = e["start_local"].isoformat()
+            time_range = "all day".ljust(11)
+        else:
+            when = e["start_local"].date().isoformat()
+            time_range = f"{e['start_local'].strftime('%H:%M')}-{e['end_local'].strftime('%H:%M')}"
+        print(f"{when}  {time_range}  {e['summary']}")
+
 def render_digest(commitments, today):
     """Print all open commitments, sorted by date (undated last).
     Flags any open commitment whose date is before today as OVERDUE.
@@ -135,8 +152,10 @@ if __name__ == "__main__":
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
     messages = fetch_recent_messages(service, QUERY, MAX_RESULTS)
+    events = fetch_upcoming_events(7)
 
     skipped, extracted, failed = process_messages(messages, state, today)
+    render_calendar(events)
     render_digest(state["commitments"], today)
     overdue, aging = detect_stalls(state["commitments"], today)
     render_stalls(overdue, aging)
