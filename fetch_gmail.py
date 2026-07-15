@@ -83,17 +83,32 @@ def fetch_one_message(service, query):
     return message["payload"]
 
 
-def fetch_recent_messages(service, query, max_results=25):
+def fetch_recent_messages(service, query, max_results=200):
     """Return a list of recent messages matching the query.
 
     Each item is a dict: {"subject", "sender", "body", "id"}.
     An unreadable message gets body=None instead of killing the run.
     Returns an empty list if nothing matches.
+
+    max_results is a TOTAL ceiling across all fetched pages, not a page
+    size. If the ceiling is hit, the list is truncated to exactly
+    max_results and a WARNING is printed noting older matching messages
+    were not fetched.
     """
-    results = service.users().messages().list(
-        userId="me", q=query, maxResults=max_results
-    ).execute()
-    found = results.get("messages", [])
+    found = []
+    page_token = None
+    while True:
+        results = service.users().messages().list(
+            userId="me", q=query, maxResults=100, pageToken=page_token
+        ).execute()
+        found.extend(results.get("messages", []))
+        if len(found) >= max_results:
+            found = found[:max_results]
+            print(f"WARNING: fetch ceiling ({max_results}) hit — older matching messages were not fetched.")
+            break
+        page_token = results.get("nextPageToken")
+        if not page_token:
+            break
 
     messages = []
     for item in found:

@@ -6,7 +6,7 @@ from extract import extract_commitments
 from state import load_state, save_state, STATE_FILE
 
 QUERY = "newer_than:2d"
-MAX_RESULTS = 25
+MAX_RESULTS = 200
 AGING_THRESHOLD_DAYS = 3
 
 def process_messages(messages, state, today):
