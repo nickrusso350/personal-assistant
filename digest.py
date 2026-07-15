@@ -3,11 +3,10 @@ from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
 from fetch_calendar import fetch_upcoming_events
 from extract import extract_commitments
-from state import load_state, save_state
+from state import load_state, save_state, STATE_FILE
 
 QUERY = "newer_than:2d"
 MAX_RESULTS = 25
-STATE_FILE = "state.json"
 AGING_THRESHOLD_DAYS = 3
 
 def process_messages(messages, state, today):

@@ -2,9 +2,7 @@
 import sys
 from datetime import date
 
-from state import load_state, save_state
-
-STATE_FILE = "state.json"
+from state import load_state, save_state, STATE_FILE
 
 
 def list_open(state):
@@ -35,7 +33,7 @@ def resolve_one(state, commitment_id):
 
     commitment["status"] = "resolved"
     commitment["resolved_on"] = date.today().isoformat()
-    save_state(state)
+    save_state(state, STATE_FILE)
     print(f"Resolved '{commitment_id}': {commitment['what']}")
     return 0
 
