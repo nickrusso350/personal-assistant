@@ -93,23 +93,25 @@ def detect_stalls(commitments, today):
     return overdue, aging
 
 def render_stalls(overdue, aging):
-    """Print the needs-attention block. Prints nothing if both lists are empty."""
+    """Build the needs-attention block as a list of lines. Returns [] if both
+    lists are empty."""
     if not overdue and not aging:
-        return
-    print("\n--- NEEDS ATTENTION ---")
+        return []
+    lines = ["", "--- NEEDS ATTENTION ---"]
     for c, days_past in sorted(overdue, key=lambda t: -t[1]):
         plural = "day" if days_past == 1 else "days"
-        print(f"[OVERDUE {days_past} {plural}] {c['what']} — was due {c['date']}")
+        lines.append(f"[OVERDUE {days_past} {plural}] {c['what']} — was due {c['date']}")
     for c, days_open in sorted(aging, key=lambda t: -t[1]):
-        print(f"[OPEN {days_open} days, no date] {c['what']} — still on your plate?")
+        lines.append(f"[OPEN {days_open} days, no date] {c['what']} — still on your plate?")
+    return lines
 
 def render_calendar(events):
-    """Print upcoming calendar events. Purely informational — never touches
-    state. Prints a placeholder line if there are no events."""
-    print("--- COMING UP (next 7 days) ---")
+    """Build upcoming calendar events as a list of lines. Purely informational
+    — never touches state. Returns a placeholder line if there are no events."""
+    lines = ["--- COMING UP (next 7 days) ---"]
     if not events:
-        print("No upcoming events.")
-        return
+        lines.append("No upcoming events.")
+        return lines
     for e in events:
         if e["all_day"]:
             when = e["start_local"].isoformat()
@@ -117,34 +119,42 @@ def render_calendar(events):
         else:
             when = e["start_local"].date().isoformat()
             time_range = f"{e['start_local'].strftime('%H:%M')}-{e['end_local'].strftime('%H:%M')}"
-        print(f"{when}  {time_range}  {e['summary']}")
+        lines.append(f"{when}  {time_range}  {e['summary']}")
+    return lines
 
 def render_digest(commitments, today):
-    """Print all open commitments, sorted by date (undated last).
-    Flags any open commitment whose date is before today as OVERDUE.
+    """Build all open commitments as a list of lines, sorted by date (undated
+    last). Flags any open commitment whose date is before today as OVERDUE.
     Never mutates status.
     """
     open_items = [c for c in commitments.values() if c["status"] == "open"]
     open_items.sort(key=lambda c: c["date"] if c.get("date") else "9999-99-99")
     if not open_items:
-        print("No open commitments.")
-        return
-    print("--- COMMITMENTS ---")
+        return ["No open commitments."]
+    lines = ["--- COMMITMENTS ---"]
     for i, c in enumerate(open_items, 1):
         when = c["date"] or "no date"
         if c["time"]:
             when += f" at {c['time']}"
         overdue = c.get("date") and c["date"] < today
         flag = " [OVERDUE]" if overdue else ""
-        print(f"[{i}] ({c['type']}) {c['what']} — {when}{flag}")
+        lines.append(f"[{i}] ({c['type']}) {c['what']} — {when}{flag}")
         if c["action_needed"]:
-            print(f"    Action: {c['action_needed']}")
-        print(f"    From: {c['sender']} — {c['subject']}")
+            lines.append(f"    Action: {c['action_needed']}")
+        lines.append(f"    From: {c['sender']} — {c['subject']}")
+    return lines
+
+def build_digest(state, events, today):
+    """Compose the full digest as a single string (excluding the run summary)."""
+    lines = [f"Daily digest — {today}", f"Query: {QUERY}", ""]
+    lines += render_calendar(events)
+    lines += render_digest(state["commitments"], today)
+    overdue, aging = detect_stalls(state["commitments"], today)
+    lines += render_stalls(overdue, aging)
+    return "\n".join(lines)
 
 if __name__ == "__main__":
     today = date.today().isoformat()
-    print(f"Daily digest — {today}")
-    print(f"Query: {QUERY}\n")
 
     state = load_state(STATE_FILE)
 
@@ -154,10 +164,7 @@ if __name__ == "__main__":
     events = fetch_upcoming_events(7)
 
     skipped, extracted, failed = process_messages(messages, state, today)
-    render_calendar(events)
-    render_digest(state["commitments"], today)
-    overdue, aging = detect_stalls(state["commitments"], today)
-    render_stalls(overdue, aging)
+    print(build_digest(state, events, today))
 
     save_state(state, STATE_FILE)
 
