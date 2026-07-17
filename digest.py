@@ -153,7 +153,9 @@ def build_digest(state, events, today):
     lines += render_stalls(overdue, aging)
     return "\n".join(lines)
 
-if __name__ == "__main__":
+def run_digest():
+    """Run the full digest: fetch, process, render, and persist state.
+    Prints the digest and run summary, and returns the composed digest string."""
     today = date.today().isoformat()
 
     state = load_state(STATE_FILE)
@@ -164,7 +166,8 @@ if __name__ == "__main__":
     events = fetch_upcoming_events(7)
 
     skipped, extracted, failed = process_messages(messages, state, today)
-    print(build_digest(state, events, today))
+    digest_text = build_digest(state, events, today)
+    print(digest_text)
 
     save_state(state, STATE_FILE)
 
@@ -177,3 +180,8 @@ if __name__ == "__main__":
     for subj in failed:
         print(f"  - {subj}")
     print(f"Total open in state: {open_total}")
+
+    return digest_text
+
+if __name__ == "__main__":
+    run_digest()
