@@ -1,7 +1,7 @@
 from digest import run_digest
-from send_imessage import send_imessage, RECIPIENT
+from send_sms import send_sms, RECIPIENT
 
 if __name__ == "__main__":
     text = run_digest()
-    send_imessage(text)
+    send_sms(text)
     print(f"Sent to {RECIPIENT}")
