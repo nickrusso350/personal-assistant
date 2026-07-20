@@ -1,5 +1,7 @@
 import os
 
+from env_loader import load_env_file
+
 MESSAGING_SERVICE_SID = "MG798b0a646358ad9fceae5fc7090dff02"
 RECIPIENT = "+18133137914"
 
@@ -12,6 +14,7 @@ def send_sms(text):
     characters raises RuntimeError. Never prints or logs the credentials.
 
     Prints the returned message's sid and status. Returns None on success."""
+    load_env_file()
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     if not account_sid:
         raise RuntimeError("Missing environment variable: TWILIO_ACCOUNT_SID")
