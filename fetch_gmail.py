@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
 ]
 TOKEN_FILE = "token.json"
 

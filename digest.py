@@ -102,6 +102,39 @@ def detect_stalls(commitments, today):
                 aging.append((c, days_open))
     return overdue, aging
 
+def derive_proposals(commitments, today):
+    """Pure read over commitments. Returns the list of proposable commitments:
+    status == "open", not yet calendared (no "calendar" key), a date that parses
+    via parse_iso_date, and a parsed date that is today or later. Never mutates."""
+    today_d = date.fromisoformat(today)
+    proposals = []
+    for c in commitments.values():
+        if c["status"] != "open":
+            continue
+        if "calendar" in c:
+            continue
+        d = parse_iso_date(c.get("date"))
+        if d is None:
+            continue
+        if d >= today_d:
+            proposals.append(c)
+    return proposals
+
+def render_proposed(proposals):
+    """Build proposable commitments as a list of lines, sorted by date.
+    Informational — never mutates state and never shows commitment ids.
+    Returns [] if there are no proposals."""
+    if not proposals:
+        return []
+    items = sorted(proposals, key=lambda c: c["date"])
+    lines = ["PROPOSED"]
+    for c in items:
+        when = format_date(c["date"])
+        if c["time"]:
+            when += f" at {c['time']}"
+        lines.append(f"({c['type']}) {c['what']} — {when}")
+    return lines
+
 def render_stalls(overdue, aging):
     """Build the needs-attention block as a list of lines. Returns [] if both
     lists are empty."""
@@ -174,14 +207,15 @@ def build_digest(state, events, today):
     overdue, aging = detect_stalls(state["commitments"], today)
     exclude_ids = {c["id"] for c, _ in overdue} | {c["id"] for c, _ in aging}
     stall_lines = render_stalls(overdue, aging)
+    proposed_lines = render_proposed(derive_proposals(state["commitments"], today))
     commit_lines = render_digest(state["commitments"], today, exclude_ids)
     cal_lines = render_calendar(events)
 
-    if not stall_lines and not commit_lines and not cal_lines:
+    if not stall_lines and not proposed_lines and not commit_lines and not cal_lines:
         return header + "\n\nNothing needs your attention today."
 
     lines = [header]
-    for section in (stall_lines, commit_lines, cal_lines):
+    for section in (stall_lines, proposed_lines, commit_lines, cal_lines):
         if section:
             lines.append("")
             lines += section
