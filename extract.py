@@ -2,6 +2,8 @@ import anthropic
 import json
 from datetime import date
 
+from env_loader import load_env_file
+
 # ─── The extraction brain ───────────────────────────────────────
 def extract_commitments(message):
     """Take one message string, return a LIST of commitment dicts.
@@ -53,6 +55,7 @@ Message:
 \"\"\"
 {message}
 \"\"\"""".format(message=message, today=today)
+    load_env_file()
     client = anthropic.Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-6",

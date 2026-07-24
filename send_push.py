@@ -1,6 +1,8 @@
 import os
 import requests
 
+from env_loader import load_env_file
+
 
 def send_push(body, title):
     """Send a Pushover notification. Reads PUSHOVER_USER_KEY and
@@ -8,6 +10,7 @@ def send_push(body, title):
     missing variable before any network activity. Raises RuntimeError on a
     network/HTTP failure or when Pushover's response status is not 1. Returns
     None on success."""
+    load_env_file()
     user = os.environ.get("PUSHOVER_USER_KEY")
     if not user:
         raise RuntimeError("Missing environment variable: PUSHOVER_USER_KEY")
