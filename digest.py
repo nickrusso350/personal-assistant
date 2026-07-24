@@ -200,30 +200,44 @@ def render_digest(commitments, today, exclude_ids):
         lines.append(f"    From: {c['sender']} — {c['subject']}")
     return lines
 
-def build_digest(state, events, today):
-    """Compose the full digest as a single string (excluding the run summary)."""
+def build_digest(state, events, today, compact_calendar=False):
+    """Compose the digest as a (title, body) tuple, excluding the run summary.
+
+    title is the header line; body is everything after it with no leading blank
+    line. Reassembling as title + "\\n\\n" + body reproduces the single-string
+    digest exactly. When compact_calendar is True, the COMING UP section
+    collapses to one summary line (an empty calendar still renders nothing).
+    The flag changes rendering only — classification and section order are
+    identical regardless of it."""
     d = parse_iso_date(today)
-    header = f"Digest — {d.strftime('%a, %b')} {d.day}"
+    title = f"Digest — {d.strftime('%a, %b')} {d.day}"
     overdue, aging = detect_stalls(state["commitments"], today)
     exclude_ids = {c["id"] for c, _ in overdue} | {c["id"] for c, _ in aging}
     stall_lines = render_stalls(overdue, aging)
     proposed_lines = render_proposed(derive_proposals(state["commitments"], today))
     commit_lines = render_digest(state["commitments"], today, exclude_ids)
-    cal_lines = render_calendar(events)
+    if compact_calendar:
+        n = len(events)
+        noun = "event" if n == 1 else "events"
+        cal_lines = [f"COMING UP: {n} {noun} in the next 7 days"] if n else []
+    else:
+        cal_lines = render_calendar(events)
 
     if not stall_lines and not proposed_lines and not commit_lines and not cal_lines:
-        return header + "\n\nNothing needs your attention today."
+        return title, "Nothing needs your attention today."
 
-    lines = [header]
+    body_lines = []
     for section in (stall_lines, proposed_lines, commit_lines, cal_lines):
         if section:
-            lines.append("")
-            lines += section
-    return "\n".join(lines)
+            if body_lines:
+                body_lines.append("")
+            body_lines += section
+    return title, "\n".join(body_lines)
 
 def run_digest():
-    """Run the full digest: fetch, process, render, and persist state.
-    Prints the digest and run summary, and returns the composed digest string."""
+    """Run the full digest: fetch, process, persist, then render.
+    Prints the digest and run summary. Returns ((title, full_body),
+    (title, compact_body)) — the full and compact-calendar renders."""
     today = date.today().isoformat()
 
     state = load_state(STATE_FILE)
@@ -234,10 +248,11 @@ def run_digest():
     events = fetch_upcoming_events(7)
 
     skipped, extracted, failed = process_messages(messages, state, today)
-    digest_text = build_digest(state, events, today)
-    print(digest_text)
-
     save_state(state, STATE_FILE)
+
+    title, full_body = build_digest(state, events, today)
+    _, compact_body = build_digest(state, events, today, compact_calendar=True)
+    print(title + "\n\n" + full_body)
 
     open_total = sum(1 for c in state["commitments"].values() if c["status"] == "open")
     print(f"\n--- RUN SUMMARY ---")
@@ -249,7 +264,7 @@ def run_digest():
         print(f"  - {subj}")
     print(f"Total open in state: {open_total}")
 
-    return digest_text
+    return (title, full_body), (title, compact_body)
 
 if __name__ == "__main__":
     run_digest()
