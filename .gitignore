@@ -16,3 +16,4 @@ token.json
 state.json
 *credential*
 *secret*
+*.bak
