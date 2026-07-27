@@ -2,8 +2,27 @@ import sys
 from datetime import date
 
 from state import load_state, save_state, STATE_FILE
-from digest import derive_proposals
+from digest import parse_iso_date
 from calendar_write import create_event
+
+
+def derive_proposals(commitments, today):
+    """Pure read over commitments. Returns the list of proposable commitments:
+    status == "open", not yet calendared (no "calendar" key), a date that parses
+    via parse_iso_date, and a parsed date that is today or later. Never mutates."""
+    today_d = date.fromisoformat(today)
+    proposals = []
+    for c in commitments.values():
+        if c["status"] != "open":
+            continue
+        if "calendar" in c:
+            continue
+        d = parse_iso_date(c.get("date"))
+        if d is None:
+            continue
+        if d >= today_d:
+            proposals.append(c)
+    return proposals
 
 
 def select_by_index(items, raw):
@@ -23,8 +42,8 @@ def pick_proposals(state, read=input):
     only 'a'/'r' decide, blank/'q'/EOF quit with no decision. `read` is injected
     for tests. Returns an exit code."""
     proposals = derive_proposals(state["commitments"], date.today().isoformat())
-    # Local sort only — derive_proposals is shared with digest.py and decide_one
-    # and must keep its insertion-order contract. Every proposal has a parsing
+    # Local sort only — derive_proposals is shared with decide_one and must
+    # keep its insertion-order contract. Every proposal has a parsing
     # date, so no "9999-99-99" sentinel is needed.
     proposals = sorted(proposals, key=lambda c: c["date"])
     if not proposals:
