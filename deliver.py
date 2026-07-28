@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from digest import run_digest
 from send_push import send_push
 
@@ -64,8 +66,10 @@ def plan_parts(full_body, compact_body, budget):
 
 
 if __name__ == "__main__":
+    print(f"RUN START {datetime.now().isoformat(timespec='seconds')}")
     (title, full_body), (title2, compact_body) = run_digest()
     parts = plan_parts(full_body, compact_body, BUDGET)
+    print(f"PRE-SEND {datetime.now().isoformat(timespec='seconds')}")
     for part in parts:
         send_push(part, title)
     print(f"Sent via Pushover ({len(parts)} part(s)).")
