@@ -3,6 +3,7 @@ from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
 from fetch_calendar import fetch_upcoming_events
 from extract import extract_commitments
+from reminders_write import reconcile, write_back
 from state import load_state, save_state, STATE_FILE
 
 QUERY = "newer_than:2d"
@@ -210,7 +211,7 @@ def render_coming_up(merged):
         lines.append(f"{m['label']} — {m['summary']}")
     return lines
 
-def build_digest(state, events, today, compact_calendar=False):
+def build_digest(state, events, today, compact_calendar=False, partition=None):
     """Compose the digest as a (title, body) tuple, excluding the run summary.
 
     title is the header line; body is everything after it with no leading blank
@@ -218,10 +219,19 @@ def build_digest(state, events, today, compact_calendar=False):
     digest exactly. When compact_calendar is True, the COMING UP section
     collapses to one summary line (an empty calendar still renders nothing).
     The flag changes rendering only — classification and section order are
-    identical regardless of it."""
+    identical regardless of it.
+
+    partition, when given, is a precomputed (attention, todo, appointments)
+    triple; run_digest passes the same one to both renders so classification
+    happens once per run and write_back acts on exactly what gets rendered.
+    When None it is computed here, which is what preview_digest.py and any
+    other direct caller rely on. Pure either way — this function reads state
+    and renders strings, and never reaches Reminders."""
     d = parse_iso_date(today)
     title = f"Digest — {weekday_date(d)}"
-    attention, todo, appointments = partition_commitments(state["commitments"], d)
+    if partition is None:
+        partition = partition_commitments(state["commitments"], d)
+    attention, todo, appointments = partition
     merged = merge_coming_up(events, appointments)
     attention_lines = render_attention(attention)
     todo_lines = render_todo(todo)
@@ -244,24 +254,44 @@ def build_digest(state, events, today, compact_calendar=False):
             body_lines += section
     return title, "\n".join(body_lines)
 
-def run_digest():
-    """Run the full digest: fetch, process, persist, then render.
-    Prints the digest and run summary. Returns ((title, full_body),
-    (title, compact_body)) — the full and compact-calendar renders."""
-    today = date.today().isoformat()
-
-    state = load_state(STATE_FILE)
-
+def fetch_inputs():
+    """Phase 1 — the only network in the run. Returns (messages, events)."""
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
     messages = fetch_recent_messages(service, QUERY, MAX_RESULTS)
     events = fetch_upcoming_events(HORIZON_DAYS)
+    return messages, events
+
+def run_digest():
+    """Run the full digest: fetch, extract, reconcile, partition, write back,
+    then render. Prints the digest and run summary. Returns ((title,
+    full_body), (title, compact_body)) — the full and compact-calendar renders.
+
+    The phase order matters. reconcile runs before the partition so ticked
+    reminders drop out of today's digest rather than being re-listed and
+    re-created. The partition runs exactly once: write_back creates reminders
+    for the same NEEDS ATTENTION and TO DO items the two renders show, so the
+    Reminders list and the sent digest can never disagree."""
+    today = date.today().isoformat()
+    today_d = parse_iso_date(today)
+
+    state = load_state(STATE_FILE)
+
+    messages, events = fetch_inputs()
 
     skipped, extracted, failed = process_messages(messages, state, today)
     save_state(state, STATE_FILE)
 
-    title, full_body = build_digest(state, events, today)
-    _, compact_body = build_digest(state, events, today, compact_calendar=True)
+    reconcile(state)
+
+    partition = partition_commitments(state["commitments"], today_d)
+    attention, todo, _appointments = partition
+    write_back(state, attention, todo)
+
+    title, full_body = build_digest(state, events, today, partition=partition)
+    _, compact_body = build_digest(
+        state, events, today, compact_calendar=True, partition=partition
+    )
     print(title + "\n\n" + full_body)
 
     open_total = sum(1 for c in state["commitments"].values() if c["status"] == "open")

@@ -1,13 +1,23 @@
 """Every side effect against Apple Reminders lives here.
 
-All three public functions shell out to osascript with the AppleScript supplied
-as -e lines and every dynamic value — titles, ids, the list name — bound to
-argv after a "--" separator. Nothing caller-supplied is ever interpolated into
-the script source, so a title containing quotes, backslashes, or newlines is
-data rather than code. Never uses a shell.
+create_reminder, read_completed, and delete_reminder shell out to osascript
+with the AppleScript supplied as -e lines and every dynamic value — titles,
+ids, the list name — bound to argv after a "--" separator. Nothing
+caller-supplied is ever interpolated into the script source, so a title
+containing quotes, backslashes, or newlines is data rather than code. Never
+uses a shell.
+
+reconcile and write_back sit above those three and drive the digest's side of
+the pipeline. Deletion is deliberately absent from both: it lives in exactly
+one place, resolve_one's hook, so the ticked-item path and the manual-picker
+path delete through the same line of code.
 """
 
 import subprocess
+import sys
+from datetime import date
+
+from state import save_state, STATE_FILE
 
 LIST_NAME = "Daily Digest"
 
@@ -138,3 +148,67 @@ def delete_reminder(reminder_id):
             return None
         _fail("delete_reminder", result)
     return None
+
+
+def reconcile(state):
+    """Fold ticked reminders back into state as resolutions. Runs before the
+    partition, so anything resolved here drops out of the digest.
+
+    One read_completed per stored id, sequential, no bulk. A True hands off to
+    resolve_one, which saves and — through its own hook — performs the delete;
+    this function never deletes. False leaves the commitment open. A reminder
+    that no longer exists makes read_completed raise, which is also "leave it
+    open and touch nothing": a missing reminder is not evidence of completion.
+    Mutates state via resolve_one, which saves per resolution."""
+    # Function-level import: resolve.py imports delete_reminder from this
+    # module, so importing resolve at module scope would close the cycle.
+    from resolve import resolve_one
+
+    for commitment in list(state["commitments"].values()):
+        if commitment["status"] != "open":
+            continue
+        reminder = commitment.get("reminder")
+        if not reminder or not reminder.get("reminder_id"):
+            continue
+        try:
+            completed = read_completed(reminder["reminder_id"])
+        except Exception as error:
+            print(
+                f"reconcile: read failed for {commitment['id']}: {error}",
+                file=sys.stderr,
+            )
+            continue
+        if completed:
+            resolve_one(state, commitment["id"])
+
+
+def write_back(state, needs_attention, todo):
+    """Create a Reminder for every actionable commitment that lacks one.
+
+    Takes the partition's NEEDS ATTENTION and TO DO lists only — never COMING
+    UP, which is calendar territory. The title is the commitment's stored what
+    text with no date suffix. Create-then-record per item: the reminder exists
+    before state claims it does, and state is saved immediately, so a crash
+    mid-run can strand a reminder but can never record an id that isn't real.
+
+    A create that fails or times out logs to stderr and moves on — one slow
+    create must never cost the digest. Never retries: no sub-dict is written,
+    so the next run creates again and the duplicate is visible and
+    hand-deletable, which is the accepted trade."""
+    today = date.today().isoformat()
+    for commitment in list(needs_attention) + list(todo):
+        if commitment.get("reminder"):
+            continue
+        try:
+            reminder_id = create_reminder(commitment["what"])
+        except Exception as error:
+            print(
+                f"write_back: create failed for {commitment['id']}: {error}",
+                file=sys.stderr,
+            )
+            continue
+        commitment["reminder"] = {
+            "reminder_id": reminder_id,
+            "created_on": today,
+        }
+        save_state(state, STATE_FILE)

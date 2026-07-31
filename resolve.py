@@ -2,6 +2,7 @@
 import sys
 from datetime import date
 
+from reminders_write import delete_reminder
 from state import load_state, save_state, STATE_FILE
 
 
@@ -43,7 +44,16 @@ def pick_open(state, read=input):
 
 
 def resolve_one(state, commitment_id):
-    """Mark one commitment resolved. Returns exit code; only saves on success."""
+    """Mark one commitment resolved. Returns exit code; only saves on success.
+
+    The single delete site in the codebase: every resolution path — the manual
+    picker, a command-line id, and reconcile folding in a ticked reminder —
+    lands here, so a resolved commitment's reminder is always removed by the
+    same line. State is saved before the delete is attempted, and a delete
+    failure does not change the exit code: the resolution is recorded either
+    way, and a lingering reminder is visible and hand-deletable. The reminder
+    sub-dict is left in place — it is inert once the commitment is resolved,
+    since reconcile and write_back both scan open commitments only."""
     commitments = state["commitments"]
 
     commitment = commitments.get(commitment_id)
@@ -58,6 +68,17 @@ def resolve_one(state, commitment_id):
     commitment["status"] = "resolved"
     commitment["resolved_on"] = date.today().isoformat()
     save_state(state, STATE_FILE)
+
+    reminder = commitment.get("reminder")
+    if reminder and reminder.get("reminder_id"):
+        try:
+            delete_reminder(reminder["reminder_id"])
+        except Exception as error:
+            print(
+                f"resolve_one: reminder delete failed for {commitment_id}: {error}",
+                file=sys.stderr,
+            )
+
     print(f"Resolved '{commitment_id}': {commitment['what']}")
     return 0
 
