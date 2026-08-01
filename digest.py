@@ -136,7 +136,7 @@ def render_attention(items):
         return []
     lines = ["NEEDS ATTENTION"]
     for c in sorted(items, key=lambda c: parse_iso_date(c["date"])):
-        lines.append(f"{c['what']} — was due {format_date(c['date'])}")
+        lines.append(f"• {c['what']} — was due {format_date(c['date'])}")
     return lines
 
 def render_todo(items):
@@ -150,9 +150,9 @@ def render_todo(items):
     dated.sort(key=lambda c: parse_iso_date(c["date"]))
     lines = ["TO DO"]
     for c in dated:
-        lines.append(f"{c['what']} — due {format_date(c['date'])}")
+        lines.append(f"• {c['what']} — due {format_date(c['date'])}")
     for c in dateless:
-        lines.append(f"{c['what']}")
+        lines.append(f"• {c['what']}")
     return lines
 
 def merge_coming_up(events, appointment_commitments):
@@ -208,7 +208,7 @@ def render_coming_up(merged):
         return []
     lines = ["COMING UP"]
     for m in merged:
-        lines.append(f"{m['label']} — {m['summary']}")
+        lines.append(f"• {m['label']} — {m['summary']}")
     return lines
 
 def build_digest(state, events, today, compact_calendar=False, partition=None):
