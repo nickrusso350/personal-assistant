@@ -1,6 +1,7 @@
 import subprocess
 
-RECIPIENT = "+18133137914"
+RECIPIENT = ""  # scrubbed before push; mothballed file
+
 
 def send_imessage(text, recipient=RECIPIENT):
     """Send an iMessage via AppleScript. The recipient is interpolated into the
