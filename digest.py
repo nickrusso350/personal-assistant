@@ -222,7 +222,7 @@ def build_digest(state, events, today, compact_calendar=False, partition=None):
     identical regardless of it.
 
     partition, when given, is a precomputed (attention, todo, appointments)
-    triple; run_digest passes the same one to both renders so classification
+    triple; run_digest passes the same one to the render so classification
     happens once per run and write_back acts on exactly what gets rendered.
     When None it is computed here, which is what preview_digest.py and any
     other direct caller rely on. Pure either way — this function reads state
@@ -264,13 +264,15 @@ def fetch_inputs():
 
 def run_digest():
     """Run the full digest: fetch, extract, reconcile, partition, write back,
-    then render. Prints the digest and run summary. Returns ((title,
-    full_body), (title, compact_body)) — the full and compact-calendar renders.
+    then render. Prints the digest and run summary. Returns (title, body) —
+    the full render, and the only one. There is no compact render: an oversized
+    body is split across messages by deliver.py rather than having a section
+    collapsed out of it.
 
     The phase order matters. reconcile runs before the partition so ticked
     reminders drop out of today's digest rather than being re-listed and
     re-created. The partition runs exactly once: write_back creates reminders
-    for the same NEEDS ATTENTION and TO DO items the two renders show, so the
+    for the same NEEDS ATTENTION and TO DO items the render shows, so the
     Reminders list and the sent digest can never disagree."""
     today = date.today().isoformat()
     today_d = parse_iso_date(today)
@@ -289,9 +291,6 @@ def run_digest():
     write_back(state, attention, todo)
 
     title, full_body = build_digest(state, events, today, partition=partition)
-    _, compact_body = build_digest(
-        state, events, today, compact_calendar=True, partition=partition
-    )
     print(title + "\n\n" + full_body)
 
     open_total = sum(1 for c in state["commitments"].values() if c["status"] == "open")
@@ -304,7 +303,7 @@ def run_digest():
         print(f"  - {subj}")
     print(f"Total open in state: {open_total}")
 
-    return (title, full_body), (title, compact_body)
+    return title, full_body
 
 if __name__ == "__main__":
     run_digest()

@@ -6,20 +6,20 @@ from send_push import send_push
 BUDGET = 950  # bytes, measured as len(s.encode("utf-8"))
 
 
-def plan_parts(full_body, compact_body, budget):
-    """Pure. Return the list of message strings to send:
-    full_body fits -> [full_body]; else compact_body fits -> [compact_body];
-    else split compact_body into parts each under budget, preferring the last
-    blank-line boundary under budget and falling back to any newline boundary.
-    Split parts are prefixed with "(i/n)  " and that prefix counts toward the
-    part's budget."""
+def plan_parts(full_body, budget):
+    """Pure. Return the list of message strings to send: full_body fits ->
+    [full_body]; otherwise split full_body into parts each under budget,
+    preferring the last blank-line boundary under budget and falling back to
+    any newline boundary. Split parts are prefixed with "(i/n)  " and that
+    prefix counts toward the part's budget.
+
+    Splitting is always preferred to dropping content — two messages beat one
+    message with a section deleted."""
     def blen(s):
         return len(s.encode("utf-8"))
 
     if blen(full_body) <= budget:
         return [full_body]
-    if blen(compact_body) <= budget:
-        return [compact_body]
 
     def byte_prefix_len(s, cap):
         total = 0
@@ -52,12 +52,15 @@ def plan_parts(full_body, compact_body, budget):
             rest = rest[nxt:]
         return chunks
 
+    if budget <= len("(1/1)  "):
+        raise ValueError(f"budget {budget} too small to split")
+
     # Reserve prefix width; iterate because n's digit-count feeds back into the
     # per-part budget. total <= n guarantees actual prefixes fit the reserve.
     n = 1
     while True:
         reserve = len(f"({n}/{n})  ")
-        chunks = split(compact_body, budget - reserve)
+        chunks = split(full_body, budget - reserve)
         if len(chunks) <= n:
             break
         n = len(chunks)
@@ -67,8 +70,8 @@ def plan_parts(full_body, compact_body, budget):
 
 if __name__ == "__main__":
     print(f"RUN START {datetime.now().isoformat(timespec='seconds')}")
-    (title, full_body), (title2, compact_body) = run_digest()
-    parts = plan_parts(full_body, compact_body, BUDGET)
+    title, full_body = run_digest()
+    parts = plan_parts(full_body, BUDGET)
     print(f"PRE-SEND {datetime.now().isoformat(timespec='seconds')}")
     for part in parts:
         send_push(part, title)
