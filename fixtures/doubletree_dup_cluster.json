@@ -1,0 +1,80 @@
+{
+  "19f9fd1252477712:0": {
+    "id": "19f9fd1252477712:0",
+    "status": "open",
+    "first_seen": "2026-07-26",
+    "resolved_on": null,
+    "type": "appointment",
+    "what": "Check-in at DoubleTree by Hilton Augusta",
+    "date": "2026-08-02",
+    "time": "15:00",
+    "action_needed": null,
+    "subject": "Your upcoming Aug-02-2026 stay at DoubleTree by Hilton Augusta",
+    "sender": "Hilton Honors <noreply@h6.hilton.com>"
+  },
+  "19f9fd1252477712:1": {
+    "id": "19f9fd1252477712:1",
+    "status": "open",
+    "first_seen": "2026-07-26",
+    "resolved_on": null,
+    "type": "appointment",
+    "what": "Check-out at DoubleTree by Hilton Augusta",
+    "date": "2026-08-08",
+    "time": "12:00",
+    "action_needed": null,
+    "subject": "Your upcoming Aug-02-2026 stay at DoubleTree by Hilton Augusta",
+    "sender": "Hilton Honors <noreply@h6.hilton.com>"
+  },
+  "19fb466171b79288:0": {
+    "id": "19fb466171b79288:0",
+    "status": "open",
+    "first_seen": "2026-07-31",
+    "resolved_on": null,
+    "type": "appointment",
+    "what": "Hotel check-in at DoubleTree by Hilton Augusta",
+    "date": "2026-08-02",
+    "time": "15:00",
+    "action_needed": null,
+    "subject": "You\u2019ve been upgraded!",
+    "sender": "Hilton Honors <noreply@h6.hilton.com>"
+  },
+  "19fb466171b79288:1": {
+    "id": "19fb466171b79288:1",
+    "status": "open",
+    "first_seen": "2026-07-31",
+    "resolved_on": null,
+    "type": "appointment",
+    "what": "Hotel check-out at DoubleTree by Hilton Augusta",
+    "date": "2026-08-08",
+    "time": "12:00",
+    "action_needed": null,
+    "subject": "You\u2019ve been upgraded!",
+    "sender": "Hilton Honors <noreply@h6.hilton.com>"
+  },
+  "19fbeb7a19123b5d:0": {
+    "id": "19fbeb7a19123b5d:0",
+    "status": "open",
+    "first_seen": "2026-08-02",
+    "resolved_on": null,
+    "type": "appointment",
+    "what": "Hotel check-in at DoubleTree by Hilton Augusta (Confirmation #53359496)",
+    "date": "2026-08-02",
+    "time": "15:00",
+    "action_needed": null,
+    "subject": "Check in now and request Digital Key for your stay",
+    "sender": "DoubleTree by Hilton <noreply@h6.hilton.com>"
+  },
+  "19fbeb7a19123b5d:1": {
+    "id": "19fbeb7a19123b5d:1",
+    "status": "open",
+    "first_seen": "2026-08-02",
+    "resolved_on": null,
+    "type": "appointment",
+    "what": "Hotel check-out at DoubleTree by Hilton Augusta",
+    "date": "2026-08-08",
+    "time": "12:00",
+    "action_needed": null,
+    "subject": "Check in now and request Digital Key for your stay",
+    "sender": "DoubleTree by Hilton <noreply@h6.hilton.com>"
+  }
+}
