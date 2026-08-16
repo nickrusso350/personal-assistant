@@ -155,7 +155,7 @@ def render_todo(items):
         lines.append(f"• {c['what']}")
     return lines
 
-def merge_coming_up(events, appointment_commitments):
+def merge_coming_up(events, appointment_commitments, today):
     """Normalize calendar events and appointment commitments into one
     date-sorted timeline. Each item is {sort_key, label, summary}.
 
@@ -166,7 +166,19 @@ def merge_coming_up(events, appointment_commitments):
         if e["all_day"]:
             d = e["start_local"]
             start_time = time.min
-            label = f"{weekday_date(d)} — all day"
+            # Google all-day end dates are EXCLUSIVE: an Aug 2-8 stay
+            # arrives with end 2026-08-09. Subtract one day for the
+            # true last day.
+            display_end = e["end_local"] - timedelta(days=1)
+            if d < today and display_end == today:
+                # Final morning of the span.
+                label = f"Last day: {weekday_date(display_end)} — all day"
+            elif d < today and display_end > today:
+                # In progress: lead with the span running from now,
+                # not the stale start date.
+                label = f"Now–{weekday_date(display_end)} — all day"
+            else:
+                label = f"{weekday_date(d)} — all day"
         else:
             d = e["start_local"].date()
             start_time = e["start_local"].time()
@@ -232,7 +244,7 @@ def build_digest(state, events, today, compact_calendar=False, partition=None):
     if partition is None:
         partition = partition_commitments(state["commitments"], d)
     attention, todo, appointments = partition
-    merged = merge_coming_up(events, appointments)
+    merged = merge_coming_up(events, appointments, d)
     attention_lines = render_attention(attention)
     todo_lines = render_todo(todo)
     if compact_calendar:

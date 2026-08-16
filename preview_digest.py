@@ -87,6 +87,35 @@ EVENTS = [
         "end_local": TODAY + timedelta(days=3),
         "all_day": True,
     },
+    # In-progress multi-day all-day: started 2 days ago, last day
+    # TODAY+3 (end is exclusive, so end_local = TODAY+4).
+    # Must render the "through" form.
+    {
+        "id": "evt_stay_inprogress",
+        "summary": "Stay: Fixture Hotel",
+        "start_local": TODAY - timedelta(days=2),
+        "end_local": TODAY + timedelta(days=4),
+        "all_day": True,
+    },
+    # Not-yet-started multi-day all-day: starts TODAY+3, last day
+    # TODAY+5. Must KEEP the plain start-date form.
+    {
+        "id": "evt_stay_future",
+        "summary": "Conference block (not started)",
+        "start_local": TODAY + timedelta(days=3),
+        "end_local": TODAY + timedelta(days=6),
+        "all_day": True,
+    },
+    # Final morning of a multi-day stay: last day is TODAY
+    # (end is exclusive, so end_local = TODAY+1).
+    # Must render the "Last day:" form.
+    {
+        "id": "evt_stay_lastday",
+        "summary": "Stay: Checkout Hotel",
+        "start_local": TODAY - timedelta(days=2),
+        "end_local": TODAY + timedelta(days=1),
+        "all_day": True,
+    },
 ]
 
 
