@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
-from fetch_calendar import fetch_upcoming_events
+from fetch_calendar import fetch_upcoming_events, DEFAULT_TZ as HOME_TZ
 from extract import extract_commitments
 from reminders_write import reconcile, write_back
 from state import load_state, save_state, STATE_FILE
@@ -186,10 +186,25 @@ def merge_coming_up(events, appointment_commitments, today):
             end = e["end_local"].strftime("%I:%M").lstrip("0")
             start_ampm = e["start_local"].strftime("%p")
             end_ampm = e["end_local"].strftime("%p")
-            if start_ampm == end_ampm:
-                timerange = f"{start}–{end} {end_ampm}"
+            # A bare time implicitly claims the machine's zone. Label any
+            # endpoint that isn't in HOME_TZ; label both when the two
+            # endpoints differ, or one suffix would appear to cover both.
+            # Compare on the IANA key (stable: HOME_TZ never equals "EDT"),
+            # display the abbreviation (%Z on an aware datetime resolves
+            # EDT/EST correctly for the instant, and costs far fewer bytes).
+            start_zone = getattr(e["start_local"].tzinfo, "key", None)
+            end_zone = getattr(e["end_local"].tzinfo, "key", None)
+            # An absent zone (naive datetime) is never labeled: "None" in a
+            # digest line is worse than no label at all.
+            cross_zone = bool(start_zone and end_zone and start_zone != end_zone)
+            s_abbr = e["start_local"].strftime("%Z")
+            e_abbr = e["end_local"].strftime("%Z")
+            s_suffix = f" {s_abbr}" if start_zone and s_abbr and (cross_zone or start_zone != HOME_TZ) else ""
+            e_suffix = f" {e_abbr}" if end_zone and e_abbr and (cross_zone or end_zone != HOME_TZ) else ""
+            if start_ampm == end_ampm and not cross_zone:
+                timerange = f"{start}–{end} {end_ampm}{e_suffix}"
             else:
-                timerange = f"{start} {start_ampm}–{end} {end_ampm}"
+                timerange = f"{start} {start_ampm}{s_suffix}–{end} {end_ampm}{e_suffix}"
             label = f"{weekday_date(d)} — {timerange}"
         merged.append({
             "sort_key": (d, start_time),

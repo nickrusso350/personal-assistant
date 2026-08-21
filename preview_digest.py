@@ -8,6 +8,7 @@ Run: python3 preview_digest.py
 """
 
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from digest import build_digest
 
@@ -71,13 +72,53 @@ STATE = {"commitments": {c["id"]: c for c in FIXTURES}}
 # datetimes, all-day events carry plain dates. The all-day one shares its date
 # with fixtures 4 and 11, so COMING UP proves it interleaves by date rather
 # than by source.
-TIMED_START = datetime.combine(TODAY + timedelta(days=1), time(10, 0))
+ET = ZoneInfo("America/New_York")
+PT = ZoneInfo("America/Los_Angeles")
+UTC = ZoneInfo("UTC")
+
+# Production always returns AWARE datetimes (fetch_calendar does
+# .astimezone(tz)), so timed fixtures carry tzinfo or they exercise the
+# wrong branch of the zone-label rule.
+TIMED_START = datetime.combine(TODAY + timedelta(days=1), time(10, 0), tzinfo=ET)
+D2 = TODAY + timedelta(days=2)
 EVENTS = [
     {
         "id": "evt_timed",
         "summary": "Sprint review",
         "start_local": TIMED_START,
         "end_local": TIMED_START + timedelta(hours=1),
+        "all_day": False,
+    },
+    # Home zone, split meridiem: must stay BARE.
+    {
+        "id": "evt_tz_home_split",
+        "summary": "Zone: home split meridiem (no label)",
+        "start_local": datetime.combine(D2, time(11, 0), tzinfo=ET),
+        "end_local": datetime.combine(D2, time(13, 0), tzinfo=ET),
+        "all_day": False,
+    },
+    # Foreign single zone: one trailing PDT suffix.
+    {
+        "id": "evt_tz_foreign",
+        "summary": "Zone: Sea-Tac pickup (PDT)",
+        "start_local": datetime.combine(D2, time(20, 0), tzinfo=PT),
+        "end_local": datetime.combine(D2, time(21, 0), tzinfo=PT),
+        "all_day": False,
+    },
+    # Cross-zone (D2 ruling): BOTH endpoints labeled, no meridiem collapse.
+    {
+        "id": "evt_tz_cross",
+        "summary": "Zone: cross-zone flight (both labeled)",
+        "start_local": datetime.combine(D2, time(21, 35), tzinfo=ET),
+        "end_local": datetime.combine(D2, time(23, 57), tzinfo=PT),
+        "all_day": False,
+    },
+    # UTC-stored upstream defect: label makes it visibly wrong, not silent.
+    {
+        "id": "evt_tz_utc",
+        "summary": "Zone: UTC-stored upstream (loud)",
+        "start_local": datetime.combine(D2, time(13, 0), tzinfo=UTC),
+        "end_local": datetime.combine(D2, time(16, 0), tzinfo=UTC),
         "all_day": False,
     },
     {
