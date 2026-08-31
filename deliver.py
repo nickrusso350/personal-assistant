@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 
 from digest import run_digest
@@ -73,6 +74,8 @@ if __name__ == "__main__":
     title, full_body = run_digest()
     parts = plan_parts(full_body, BUDGET)
     print(f"PRE-SEND {datetime.now().isoformat(timespec='seconds')}")
-    for part in parts:
+    for i, part in enumerate(parts):
+        if i:
+            time.sleep(2)
         send_push(part, title)
     print(f"Sent via Pushover ({len(parts)} part(s)).")
