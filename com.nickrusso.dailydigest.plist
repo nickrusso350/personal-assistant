@@ -7,10 +7,10 @@
 	<key>ProgramArguments</key>
 	<array>
 		<string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
-		<string>/Users/nickrusso/Documents/Claude/personal_assistant/deliver.py</string>
+		<string>/Users/__USER__/Documents/Claude/personal_assistant/deliver.py</string>
 	</array>
 	<key>WorkingDirectory</key>
-	<string>/Users/nickrusso/Documents/Claude/personal_assistant</string>
+	<string>/Users/__USER__/Documents/Claude/personal_assistant</string>
 	<key>StartCalendarInterval</key>
 	<dict>
 		<key>Hour</key>
@@ -21,8 +21,8 @@
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardOutPath</key>
-	<string>/Users/nickrusso/Library/Logs/personal_assistant/digest.out</string>
+	<string>/Users/__USER__/Library/Logs/personal_assistant/digest.out</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/nickrusso/Library/Logs/personal_assistant/digest.err</string>
+	<string>/Users/__USER__/Library/Logs/personal_assistant/digest.err</string>
 </dict>
 </plist>
