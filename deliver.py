@@ -74,7 +74,7 @@ if __name__ == "__main__":
     title, full_body = run_digest()
     parts = plan_parts(full_body, BUDGET)
     print(f"PRE-SEND {datetime.now().isoformat(timespec='seconds')}")
-    for i, part in enumerate(parts):
+    for i, part in enumerate(reversed(parts)):
         if i:
             time.sleep(2)
         send_push(part, title)
