@@ -160,6 +160,82 @@ EVENTS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Duplication display-collapse corpus (ruled 2026-09-02). D4 carries the
+# positive cases, D5 the negatives. A positive fixture proves the
+# discriminator fires; only the negatives prove it discriminates.
+D4 = TODAY + timedelta(days=4)
+D5 = TODAY + timedelta(days=5)
+
+DUP_FIXTURES = [
+    # P1 — the 8/2 case pair, same time: collapses to the longer, (x2)
+    commitment("d1", "Check-in at Fixture Inn Seattle North", "appointment", iso(4), time="15:00"),
+    commitment("d2", "Hotel check-in at Fixture Inn Seattle North", "appointment", iso(4), time="15:00"),
+    # P2 — thread double-extraction (identical text) + parser calendar event
+    # at the same start (see DUP_EVENTS): one line, (x3), appointment label
+    # survives, NOT the parser's leg-arrival range
+    commitment("d3", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR", "appointment", iso(4), time="17:55"),
+    commitment("d4", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR", "appointment", iso(4), time="17:55"),
+    # P4 — punctuation/wording drift ("pick-up", "intermediate"): (x2)
+    commitment("d5", "Alamo intermediate car rental pick-up at Fixture Airport", "appointment", iso(4), time="23:00"),
+    commitment("d6", "Alamo car rental pick-up at Fixture Airport", "appointment", iso(4), time="23:00"),
+    # N1 — check-out vs check-in, same hotel, different times: TWO lines
+    commitment("d7", "Check-out at Fixture Inn Seattle North", "appointment", iso(5), time="11:00"),
+    commitment("d8", "Check-in at Fixture Inn Seattle North", "appointment", iso(5), time="15:00"),
+    # N2 — two legs, same airline, same day, different times: TWO lines
+    commitment("d9", "Delta flight TPA to ATL", "appointment", iso(5), time="09:00"),
+    commitment("d10", "Delta flight ATL to SEA", "appointment", iso(5), time="12:30"),
+    # N3 — recurring obligation on different dates: TWO lines (D4 and D5)
+    commitment("d11", "Weekly standup with the team", "appointment", iso(4), time="10:00"),
+    commitment("d12", "Weekly standup with the team", "appointment", iso(5), time="10:00"),
+    # N6 — same date/time, only TWO shared words ("dr patel"): TWO lines.
+    # This is the threshold probe; if ANCHOR_RUN ever drops to 2 it collapses.
+    commitment("d13", "Dentist visit with Dr Patel", "appointment", iso(5), time="14:00"),
+    commitment("d14", "Prescription pickup for Dr Patel", "appointment", iso(5), time="14:00"),
+]
+
+DUP_EVENTS = [
+    # P3 — two calendar writers, all-day, "Stay:" vs "Stay at": one line, (x2).
+    # N4 lives here too: both share their date with P1 but time.min != 15:00,
+    # so the stay pair and the check-in pair render as SEPARATE lines.
+    {
+        "id": "evt_dup_stay_parser",
+        "summary": "Stay: Fixture Inn Seattle North",
+        "start_local": D4,
+        "end_local": D4 + timedelta(days=3),
+        "all_day": True,
+    },
+    {
+        "id": "evt_dup_stay_po",
+        "summary": "Stay at Fixture Inn Seattle North",
+        "start_local": D4,
+        "end_local": D4 + timedelta(days=3),
+        "all_day": True,
+    },
+    # P2 (calendar half) — parser leg with an end time, same start as d3/d4
+    {
+        "id": "evt_dup_flight_parser",
+        "summary": "Flight: TPA to ATL",
+        "start_local": datetime.combine(D4, time(17, 55), tzinfo=ET),
+        "end_local": datetime.combine(D4, time(19, 40), tzinfo=ET),
+        "all_day": False,
+    },
+    # N5 (8/16) — a plain-form stay starting today beside the in-progress
+    # "Now-" stay (evt_stay_inprogress): different sort dates, TWO lines.
+    {
+        "id": "evt_dup_stay_today",
+        "summary": "Stay at Fixture Hotel",
+        "start_local": TODAY,
+        "end_local": TODAY + timedelta(days=4),
+        "all_day": True,
+    },
+]
+
+FIXTURES.extend(DUP_FIXTURES)
+STATE["commitments"].update({c["id"]: c for c in DUP_FIXTURES})
+EVENTS.extend(DUP_EVENTS)
+
+
 def main():
     today = TODAY.isoformat()
     title, full_body = build_digest(STATE, EVENTS, today)

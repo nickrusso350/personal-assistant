@@ -228,6 +228,74 @@ def merge_coming_up(events, appointment_commitments, today):
     merged.sort(key=lambda m: m["sort_key"])
     return merged
 
+ANCHOR_RUN = 3
+
+
+def _anchor_tokens(summary):
+    """Case-fold, drop punctuation, split on whitespace. "Check-in at
+    North/Everett" and "check in at north everett" tokenize identically."""
+    return "".join(ch if ch.isalnum() else " " for ch in summary.lower()).split()
+
+
+def _shares_anchor(a, b):
+    """True when token lists a and b are identical, or share a contiguous
+    run of ANCHOR_RUN tokens in the same order. Set membership on n-grams:
+    any longer shared run contains a run of exactly ANCHOR_RUN."""
+    if a == b:
+        return True
+    if len(a) < ANCHOR_RUN or len(b) < ANCHOR_RUN:
+        return False
+    grams = {tuple(a[i:i + ANCHOR_RUN]) for i in range(len(a) - ANCHOR_RUN + 1)}
+    return any(tuple(b[i:i + ANCHOR_RUN]) in grams
+               for i in range(len(b) - ANCHOR_RUN + 1))
+
+
+def collapse_display(merged):
+    """Collapse display-duplicate timeline items. Display layer only: state
+    keeps every record (one-stop-shop ruling), and nothing here resolves,
+    deletes, or merges anything upstream of the renderer.
+
+    Two items collapse when (ruled 2026-09-02, against the 9/2 live cluster):
+      1. sort_key is equal — same date AND same start time. This is the term
+         that carries every negative fixture: check-in vs check-out, two
+         flight legs, an all-day stay beside its timed check-in, a recurring
+         obligation on different days.
+      2. Their summaries share an anchor: a contiguous run of ANCHOR_RUN
+         normalized words. Byte comparison on normalized tokens — no
+         similarity score, no threshold tuning. This is the exact-containment
+         discriminator of 8/1 widened to the shape the live data actually
+         takes: "Stay: X" beside "Stay at X" contains neither in the other.
+
+    The survivor is the WHOLE item with the longest summary, label included —
+    never a composite. Gluing one source's time range onto another's summary
+    can state a false fact (a parser's leg-arrival time on a full-itinerary
+    line). The survivor's summary gets a "(xN)" marker so a collapse is
+    visible on the phone: a wrong collapse leaves a trace instead of silently
+    eating an obligation.
+
+    Grouping is transitive by any member (A~B and B~C group all three)."""
+    groups = []
+    for item in merged:
+        toks = _anchor_tokens(item["summary"])
+        for g in groups:
+            if g["key"] == item["sort_key"] and any(_shares_anchor(toks, t) for t in g["tokens"]):
+                g["items"].append(item)
+                g["tokens"].append(toks)
+                break
+        else:
+            groups.append({"key": item["sort_key"], "tokens": [toks], "items": [item]})
+    out = []
+    for g in groups:
+        # max() returns the first maximal element, so ties keep merge order.
+        survivor = max(g["items"], key=lambda m: len(m["summary"]))
+        n = len(g["items"])
+        if n == 1:
+            out.append(survivor)
+        else:
+            out.append({**survivor, "summary": f"{survivor['summary']} (\u00d7{n})"})
+    return out
+
+
 def render_coming_up(merged):
     """Build the merged timeline as a list of lines. Purely informational —
     never touches state. Returns [] if the timeline is empty."""
@@ -260,6 +328,7 @@ def build_digest(state, events, today, compact_calendar=False, partition=None):
         partition = partition_commitments(state["commitments"], d)
     attention, todo, appointments = partition
     merged = merge_coming_up(events, appointments, d)
+    merged = collapse_display(merged)
     attention_lines = render_attention(attention)
     todo_lines = render_todo(todo)
     if compact_calendar:
