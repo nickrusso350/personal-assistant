@@ -1,0 +1,322 @@
+{
+ "records": [
+  {
+   "id": "r1",
+   "ref": [
+    "event",
+    "f1_evt_stay",
+    "start"
+   ],
+   "kind": "event",
+   "source": "calendar",
+   "date": "2026-09-05",
+   "time": null,
+   "zone": null,
+   "end_date": "2026-09-11",
+   "summary": "Stay: Fixture Suites Seattle",
+   "location": "Seattle, WA",
+   "description_snippet": "Confirmation FIXTUR",
+   "identifiers": []
+  },
+  {
+   "id": "r2",
+   "ref": [
+    "event",
+    "f1_evt_stay",
+    "end"
+   ],
+   "kind": "event",
+   "source": "calendar",
+   "date": "2026-09-11",
+   "time": null,
+   "zone": null,
+   "end_date": "2026-09-11",
+   "summary": "Stay: Fixture Suites Seattle",
+   "location": "Seattle, WA",
+   "description_snippet": "Confirmation FIXTUR",
+   "identifiers": []
+  },
+  {
+   "id": "r3",
+   "ref": [
+    "event",
+    "f1_evt_leg1",
+    "single"
+   ],
+   "kind": "event",
+   "source": "calendar",
+   "date": "2026-09-05",
+   "time": "17:55",
+   "zone": "America/New_York",
+   "end_date": null,
+   "summary": "Flight: TPA to ATL",
+   "location": "Tampa International Airport",
+   "description_snippet": "Delta 759. Confirmation FIXTUR",
+   "identifiers": [
+    "FLIGHT 759"
+   ]
+  },
+  {
+   "id": "r4",
+   "ref": [
+    "event",
+    "f1_evt_leg2",
+    "single"
+   ],
+   "kind": "event",
+   "source": "calendar",
+   "date": "2026-09-05",
+   "time": "21:35",
+   "zone": "America/New_York",
+   "end_date": null,
+   "summary": "Flight: ATL to SEA",
+   "location": "Seattle, WA",
+   "description_snippet": "Delta 903. Confirmation FIXTUR",
+   "identifiers": [
+    "FLIGHT 903"
+   ]
+  },
+  {
+   "id": "r5",
+   "ref": [
+    "event",
+    "f1_evt_car",
+    "single"
+   ],
+   "kind": "event",
+   "source": "calendar",
+   "date": "2026-09-05",
+   "time": "23:00",
+   "zone": "America/Los_Angeles",
+   "end_date": null,
+   "summary": "Car rental pick-up: Alamo",
+   "location": "Seattle-Tacoma Sea-Tac International Airport, Seattle, WA",
+   "description_snippet": "Alamo. Intermediate.",
+   "identifiers": []
+  },
+  {
+   "id": "r6",
+   "ref": [
+    "commitment",
+    "f1_checkin_a"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "15:00",
+   "zone": null,
+   "end_date": null,
+   "summary": "Hotel check-in at Fixture Suites Seattle",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  },
+  {
+   "id": "r7",
+   "ref": [
+    "commitment",
+    "f1_checkin_b"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "15:00",
+   "zone": null,
+   "end_date": null,
+   "summary": "Hotel check-in at Fixture Suites Seattle",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  },
+  {
+   "id": "r8",
+   "ref": [
+    "commitment",
+    "f1_itin_a"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "17:55",
+   "zone": null,
+   "end_date": null,
+   "summary": "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  },
+  {
+   "id": "r9",
+   "ref": [
+    "commitment",
+    "f1_itin_b"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "17:55",
+   "zone": null,
+   "end_date": null,
+   "summary": "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  },
+  {
+   "id": "r10",
+   "ref": [
+    "commitment",
+    "f1_itin_c"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "17:55",
+   "zone": null,
+   "end_date": null,
+   "summary": "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  },
+  {
+   "id": "r11",
+   "ref": [
+    "commitment",
+    "f1_leg1"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "17:55",
+   "zone": null,
+   "end_date": null,
+   "summary": "Delta flight 759: Tampa (TPA) to Atlanta (ATL)",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": [
+    "FLIGHT 759"
+   ]
+  },
+  {
+   "id": "r12",
+   "ref": [
+    "commitment",
+    "f1_leg2"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "21:35",
+   "zone": null,
+   "end_date": null,
+   "summary": "Delta flight 903: Atlanta (ATL) to Seattle (SEA)",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": [
+    "FLIGHT 903"
+   ]
+  },
+  {
+   "id": "r13",
+   "ref": [
+    "commitment",
+    "f1_car_a"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "23:00",
+   "zone": null,
+   "end_date": null,
+   "summary": "Alamo intermediate car rental pick-up at Seattle-Tacoma Sea-Tac International Airport",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  },
+  {
+   "id": "r14",
+   "ref": [
+    "commitment",
+    "f1_car_b"
+   ],
+   "kind": "appointment",
+   "source": "gmail",
+   "date": "2026-09-05",
+   "time": "23:00",
+   "zone": null,
+   "end_date": null,
+   "summary": "Alamo car rental pick-up at Seattle-Tacoma Sea-Tac International Airport",
+   "location": "",
+   "description_snippet": "(fixture)",
+   "identifiers": []
+  }
+ ],
+ "groups": [
+  {
+   "members": [
+    "r1",
+    "r6",
+    "r7"
+   ],
+   "primary": "r6",
+   "container": {
+    "name": "Seattle trip",
+    "phase": "depart"
+   },
+   "conflicts": []
+  },
+  {
+   "members": [
+    "r2"
+   ],
+   "primary": "r2",
+   "container": {
+    "name": "Seattle trip",
+    "phase": "return"
+   },
+   "conflicts": []
+  },
+  {
+   "members": [
+    "r3",
+    "r8",
+    "r9",
+    "r10",
+    "r11"
+   ],
+   "primary": "r3",
+   "container": {
+    "name": "Seattle trip",
+    "phase": "depart"
+   },
+   "conflicts": []
+  },
+  {
+   "members": [
+    "r4",
+    "r12"
+   ],
+   "primary": "r4",
+   "container": {
+    "name": "Seattle trip",
+    "phase": "depart"
+   },
+   "conflicts": []
+  },
+  {
+   "members": [
+    "r5",
+    "r13",
+    "r14"
+   ],
+   "primary": "r5",
+   "container": {
+    "name": "Seattle trip",
+    "phase": "depart"
+   },
+   "conflicts": []
+  }
+ ],
+ "cause": null
+}

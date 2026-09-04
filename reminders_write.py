@@ -150,54 +150,154 @@ def delete_reminder(reminder_id):
     return None
 
 
+def _commitment_siblings(grouping):
+    """{commitment id: [the other commitment ids in its group]}.
+
+    The join from a synthesis grouping back to commitments, built here rather
+    than imported: digest.py imports this module, so importing its
+    _index_grouping would close the cycle. Event refs are skipped - only
+    commitments can hold a reminder. ref tuples round-trip through JSON as
+    lists, so both forms are accepted.
+
+    An absent grouping, or one whose groups is None (the S6 fallback), yields
+    an empty map, and write_back then behaves exactly as it did before S4:
+    one reminder per commitment. Sharing degrades to minting, never to
+    silence.
+    """
+    if not grouping or grouping.get("groups") is None or not grouping.get("records"):
+        return {}
+    by_rid = {r["id"]: r for r in grouping["records"]}
+    siblings = {}
+    for group in grouping["groups"]:
+        members = []
+        for member in group["members"]:
+            ref = by_rid.get(member, {}).get("ref")
+            if ref and tuple(ref)[0] == "commitment":
+                members.append(tuple(ref)[1])
+        for commitment_id in members:
+            siblings[commitment_id] = [o for o in members if o != commitment_id]
+    return siblings
+
+
 def reconcile(state):
     """Fold ticked reminders back into state as resolutions. Runs before the
     partition, so anything resolved here drops out of the digest.
 
-    One read_completed per stored id, sequential, no bulk. A True hands off to
-    resolve_one, which saves and — through its own hook — performs the delete;
-    this function never deletes. False leaves the commitment open. A reminder
-    that no longer exists makes read_completed raise, which is also "leave it
-    open and touch nothing": a missing reminder is not evidence of completion.
-    Mutates state via resolve_one, which saves per resolution."""
+    One read_completed per UNIQUE reminder id (S4, ruled 2026-09-03; built
+    2026-09-04), not per commitment. Since S4 lets the members of one group
+    share a reminder id, the old one-read-per-commitment loop stranded
+    records: A and B share id X, A resolves and resolve_one deletes X, then
+    B's read_completed(X) raises, "a missing reminder is not evidence of
+    completion" leaves B open forever, it is rendered every morning, and
+    write_back skips it because it already carries a sub-dict. Silent, and
+    caught in the 2026-09-03 code read before a line of S4 was written.
+
+    So: read once per id, and on True resolve EVERY open commitment holding
+    it. resolve_one deletes through its own hook each time; the 2nd..Nth
+    delete lands on delete_reminder's idempotent missing-object path
+    (_is_missing_object_error -> return None), which is why resolving all
+    members is safe rather than merely tidy. Deletion still lives in exactly
+    one place; this function never deletes.
+
+    A read that fails leaves every holder open and touches nothing - unchanged
+    behaviour, now applied per id rather than per commitment. Side benefit:
+    fewer osascript calls per run. Mutates state via resolve_one, which saves
+    per resolution."""
     # Function-level import: resolve.py imports delete_reminder from this
     # module, so importing resolve at module scope would close the cycle.
     from resolve import resolve_one
 
-    for commitment in list(state["commitments"].values()):
+    holders = {}
+    for commitment in state["commitments"].values():
         if commitment["status"] != "open":
             continue
         reminder = commitment.get("reminder")
         if not reminder or not reminder.get("reminder_id"):
             continue
+        holders.setdefault(reminder["reminder_id"], []).append(commitment["id"])
+
+    for reminder_id, commitment_ids in holders.items():
         try:
-            completed = read_completed(reminder["reminder_id"])
+            completed = read_completed(reminder_id)
         except Exception as error:
             print(
-                f"reconcile: read failed for {commitment['id']}: {error}",
+                f"reconcile: read failed for {', '.join(commitment_ids)}: {error}",
                 file=sys.stderr,
             )
             continue
-        if completed:
-            resolve_one(state, commitment["id"])
+        if not completed:
+            continue
+        for commitment_id in commitment_ids:
+            commitment = state["commitments"].get(commitment_id)
+            # resolve_one saves per resolution and refuses an already-resolved
+            # id; re-check rather than assume nothing moved underneath.
+            if commitment is None or commitment["status"] != "open":
+                continue
+            resolve_one(state, commitment_id)
 
 
-def write_back(state, needs_attention, todo):
+def write_back(state, needs_attention, todo, grouping=None):
     """Create a Reminder for every actionable commitment that lacks one.
 
     Takes the partition's NEEDS ATTENTION and TO DO lists only — never COMING
-    UP, which is calendar territory. The title is the commitment's stored what
-    text with no date suffix. Create-then-record per item: the reminder exists
-    before state claims it does, and state is saved immediately, so a crash
-    mid-run can strand a reminder but can never record an id that isn't real.
+    UP, which is calendar territory (S3, ruled 2026-09-03: already true, now a
+    rule). The title is the commitment's stored what text with no date suffix.
+    Create-then-record per item: the reminder exists before state claims it
+    does, and state is saved immediately, so a crash mid-run can strand a
+    reminder but can never record an id that isn't real.
 
     A create that fails or times out logs to stderr and moves on — one slow
     create must never cost the digest. Never retries: no sub-dict is written,
     so the next run creates again and the duplicate is visible and
-    hand-deletable, which is the accepted trade."""
+    hand-deletable, which is the accepted trade.
+
+    S4 — one reminder per obligation across sources (ruled 2026-09-03; built
+    2026-09-04). grouping is the {"records", "groups", "cause"} dict run_digest
+    builds from synthesize(). When a commitment about to be minted is a member
+    of a group and any OTHER member already carries a reminder, this copies
+    that member's reminder_id instead of creating a second one, recording
+    created_on and shared_from so the share is legible in state, and logs
+    "write_back: shared reminder <id> from <member> to <member>" to stdout,
+    which launchd routes to digest.out. The shared id IS the group's
+    persistence across mornings; no new state key.
+
+    This is the ONE deliberate widening of the fuzzy-matching ban (ruled
+    2026-09-03), into the reminder-minting path and nowhere else. Its
+    guardrails: validate()'s partition check upstream, the grouping log, and
+    MEMBERS ADD-ONLY — an existing reminder sub-dict is never rewritten and
+    never moved, which is the `if commitment.get("reminder"): continue` below,
+    unchanged from before S4. Identity is untouched: sharing writes a
+    reminder_id, never a commitment id, and nothing here resolves, deletes, or
+    merges a record.
+
+    With no grouping, or with the S6 fallback's groups=None, no commitment has
+    siblings and this behaves exactly as it did before S4."""
     today = date.today().isoformat()
+    siblings = _commitment_siblings(grouping)
+    commitments = state["commitments"]
     for commitment in list(needs_attention) + list(todo):
+        # Members add-only: an existing reminder is never rewritten or moved.
         if commitment.get("reminder"):
+            continue
+        shared = None
+        for other_id in siblings.get(commitment["id"], ()):
+            other = commitments.get(other_id)
+            other_reminder = other.get("reminder") if other else None
+            if other_reminder and other_reminder.get("reminder_id"):
+                shared = (other_id, other_reminder["reminder_id"])
+                break
+        if shared is not None:
+            other_id, reminder_id = shared
+            commitment["reminder"] = {
+                "reminder_id": reminder_id,
+                "created_on": today,
+                "shared_from": other_id,
+            }
+            print(
+                f"write_back: shared reminder {reminder_id} "
+                f"from {other_id} to {commitment['id']}"
+            )
+            save_state(state, STATE_FILE)
             continue
         try:
             reminder_id = create_reminder(commitment["what"])

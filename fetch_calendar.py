@@ -25,7 +25,9 @@ def fetch_upcoming_events(days_ahead=7):
     """Return upcoming events from the primary calendar over the next
     days_ahead days.
 
-    Each item is a dict: {id, summary, start_local, end_local, all_day}.
+    Each item is a dict: {id, summary, start_local, end_local, all_day,
+    location, description}. location and description pass through
+    unchanged (empty string when absent) for the synthesis stage.
     Timed events carry datetime objects (in the event's timeZone, falling
     back to America/New_York); all-day events carry date objects.
     Returns an empty list if nothing matches.
@@ -57,6 +59,8 @@ def fetch_upcoming_events(days_ahead=7):
             "start_local": start_local,
             "end_local": end_local,
             "all_day": all_day,
+            "location": event.get("location", ""),
+            "description": event.get("description", ""),
         })
     return parsed
 

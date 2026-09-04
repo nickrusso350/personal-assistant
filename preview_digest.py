@@ -7,10 +7,14 @@ verification. All dates are relative to today, so this never goes stale.
 Run: python3 preview_digest.py
 """
 
+import json
+import sys
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from digest import build_digest
+from digest import build_digest, partition_commitments
+from synthesize import build_records, synthesize
 
 TODAY = date.today()
 
@@ -236,13 +240,164 @@ STATE["commitments"].update({c["id"]: c for c in DUP_FIXTURES})
 EVENTS.extend(DUP_EVENTS)
 
 
+# ---------------------------------------------------------------------------
+# Fixture 1 — the synthesis corpus (added 2026-09-04).
+#
+# The 9/3 live records with fake names and the real shape: thirteen source
+# items that are FOUR obligations on the departure day plus one on the return
+# day. Kept in its own state/event pair, never folded into the corpus above,
+# because a recorded grouping partitions exactly its own records and validate()
+# rejects any id it does not know.
+#
+# Geometry note: the real 9/3 trip ran Sep 5 -> Sep 12, eight days out. Here
+# the return is iso(7) — the last day the HORIZON_DAYS window can reach — so
+# the fixture exercises the return-day header. At iso(8) merge_coming_up emits
+# no end item at all and the return line cannot be verified.
+#
+# The confirmation code is FIXTUR. The real one is never written down here.
+F1_DEPART = TODAY + timedelta(days=1)
+F1_RETURN = TODAY + timedelta(days=7)
+
+HOTEL = "Fixture Suites Seattle"
+SEATAC = "Seattle-Tacoma Sea-Tac International Airport"
+
+F1_COMMITMENTS = [
+    # Hotel check-in, extracted twice from one thread — identical text.
+    commitment("f1_checkin_a", f"Hotel check-in at {HOTEL}", "appointment",
+               iso(1), time="15:00"),
+    commitment("f1_checkin_b", f"Hotel check-in at {HOTEL}", "appointment",
+               iso(1), time="15:00"),
+    # Whole-itinerary line, extracted three times — identical text. Joins the
+    # FIRST leg's group (prompt rule 3), never its own line.
+    commitment("f1_itin_a", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR",
+               "appointment", iso(1), time="17:55"),
+    commitment("f1_itin_b", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR",
+               "appointment", iso(1), time="17:55"),
+    commitment("f1_itin_c", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR",
+               "appointment", iso(1), time="17:55"),
+    # Per-leg lines from the same mail.
+    commitment("f1_leg1", "Delta flight 759: Tampa (TPA) to Atlanta (ATL)",
+               "appointment", iso(1), time="17:55"),
+    commitment("f1_leg2", "Delta flight 903: Atlanta (ATL) to Seattle (SEA)",
+               "appointment", iso(1), time="21:35"),
+    # Car pickup, extracted twice with wording drift.
+    commitment("f1_car_a", f"Alamo intermediate car rental pick-up at {SEATAC}",
+               "appointment", iso(1), time="23:00"),
+    commitment("f1_car_b", f"Alamo car rental pick-up at {SEATAC}",
+               "appointment", iso(1), time="23:00"),
+]
+
+F1_STATE = {"commitments": {c["id"]: c for c in F1_COMMITMENTS}}
+
+F1_EVENTS = [
+    # All-day stay: end is EXCLUSIVE, so last day is F1_RETURN. Yields TWO
+    # records (start, end) — S2 endpoints, S1 one date per group.
+    {
+        "id": "f1_evt_stay",
+        "summary": f"Stay: {HOTEL}",
+        "start_local": F1_DEPART,
+        "end_local": F1_RETURN + timedelta(days=1),
+        "all_day": True,
+        "location": "Seattle, WA",
+        "description": "Confirmation FIXTUR",
+    },
+    {
+        "id": "f1_evt_leg1",
+        "summary": "Flight: TPA to ATL",
+        "start_local": datetime.combine(F1_DEPART, time(17, 55), tzinfo=ET),
+        "end_local": datetime.combine(F1_DEPART, time(19, 40), tzinfo=ET),
+        "all_day": False,
+        "location": "Tampa International Airport",
+        "description": "Delta 759. Confirmation FIXTUR",
+    },
+    {
+        "id": "f1_evt_leg2",
+        "summary": "Flight: ATL to SEA",
+        "start_local": datetime.combine(F1_DEPART, time(21, 35), tzinfo=ET),
+        "end_local": datetime.combine(F1_DEPART, time(23, 57), tzinfo=PT),
+        "all_day": False,
+        "location": "Seattle, WA",
+        "description": "Delta 903. Confirmation FIXTUR",
+    },
+    # The CORRECTED instant (ruled 2026-09-04): stored in Pacific, renders
+    # 11:00 PM PDT. The uncorrected version was an upstream data defect, not a
+    # renderer one, and is not reproduced here.
+    {
+        "id": "f1_evt_car",
+        "summary": "Car rental pick-up: Alamo",
+        "start_local": datetime.combine(F1_DEPART, time(23, 0), tzinfo=PT),
+        "end_local": datetime.combine(F1_DEPART + timedelta(days=1), time(0, 0), tzinfo=PT),
+        "all_day": False,
+        "location": f"{SEATAC}, Seattle, WA",
+        "description": "Alamo. Intermediate.",
+    },
+]
+
+GROUPING_FIXTURE = Path(__file__).with_name("fixtures") / "grouping_fixture1.json"
+
+
+def f1_partition():
+    """Fixture 1's partition, computed the way run_digest computes it."""
+    return partition_commitments(F1_STATE["commitments"], TODAY)
+
+
+def record_live_grouping():
+    """The ONLY networked path in this file, and only under --live.
+
+    Builds fixture 1's records, calls synthesize once, and writes
+    {records, groups, cause} to fixtures/grouping_fixture1.json so every later
+    default run replays it at $0. Returns the grouping dict.
+    """
+    attention, todo, appointments = f1_partition()
+    records = build_records(F1_EVENTS, attention, todo, appointments, TODAY)
+    groups, cause = synthesize(records, TODAY)
+    grouping = {
+        "records": records,
+        "groups": groups["groups"] if groups is not None else None,
+        "cause": cause,
+    }
+    GROUPING_FIXTURE.parent.mkdir(exist_ok=True)
+    with open(GROUPING_FIXTURE, "w", encoding="utf-8") as handle:
+        json.dump(grouping, handle, indent=1)
+    return grouping
+
+
+def load_recorded_grouping():
+    """The recorded grouping, or None when nothing has been recorded yet.
+
+    None makes build_digest render the fallback with cause "off" — the honest
+    state of a machine that has never paid for a synthesis call. ref tuples
+    come back from JSON as lists; _index_grouping re-tuples them.
+    """
+    if not GROUPING_FIXTURE.exists():
+        return None
+    with open(GROUPING_FIXTURE, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
 def main():
+    live = "--live" in sys.argv[1:]
     today = TODAY.isoformat()
+
+    print("=== corpus (fallback path — synthesis off) ===\n")
     title, full_body = build_digest(STATE, EVENTS, today)
     print(title + "\n\n" + full_body)
     print()
     title, compact_body = build_digest(STATE, EVENTS, today, compact_calendar=True)
     print(title + "\n\n" + compact_body)
+
+    if live:
+        print("\n=== fixture 1 (LIVE — one synthesis API call) ===\n")
+        grouping = record_live_grouping()
+        print(f"recorded -> {GROUPING_FIXTURE} (cause={grouping['cause']})\n")
+    else:
+        grouping = load_recorded_grouping()
+        state = "replay" if grouping else "no recording yet"
+        print(f"\n=== fixture 1 ($0 — {state}) ===\n")
+
+    title, f1_body = build_digest(F1_STATE, F1_EVENTS, today,
+                                  partition=f1_partition(), grouping=grouping)
+    print(title + "\n\n" + f1_body)
 
 
 if __name__ == "__main__":

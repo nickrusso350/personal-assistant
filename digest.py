@@ -4,6 +4,8 @@ from fetch_gmail import get_credentials, fetch_recent_messages
 from fetch_calendar import fetch_upcoming_events, DEFAULT_TZ as HOME_TZ
 from extract import extract_commitments
 from reminders_write import reconcile, write_back
+from synthesize import build_records, filter_time_conflict, synthesize
+from zoneinfo import ZoneInfo
 from state import load_state, save_state, STATE_FILE
 
 QUERY = "newer_than:2d"
@@ -128,57 +130,186 @@ def partition_commitments(commitments, today):
                 todo.append(c)
     return attention, todo, appointments
 
-def render_attention(items):
+def _index_grouping(grouping):
+    """Join a synthesis grouping back to renderable items.
+
+    Returns (ref_to_group, by_rid), or (None, None) when there is no grouping
+    to apply — grouping absent, or its groups is None (fallback: network,
+    validation, or synthesis off). An EMPTY groups list is a real grouping
+    over zero records and is not the fallback."""
+    if not grouping or grouping.get("groups") is None:
+        return None, None
+    by_rid = {r["id"]: r for r in grouping["records"]}
+    ref_to_group = {}
+    for g in grouping["groups"]:
+        for m in g["members"]:
+            ref_to_group[tuple(by_rid[m]["ref"])] = g
+    return ref_to_group, by_rid
+
+
+def _fold(items, ref_of, ref_to_group, by_rid):
+    """Return [(item, group_or_None)] with non-primary members dropped.
+
+    Each group renders once, from its primary. Groups never cross sections
+    (validate() holds every group to one date and one kind-family), so the
+    primary is always among items; if it ever is not, the first member seen
+    stands in rather than the whole group vanishing."""
+    if ref_to_group is None:
+        return [(it, None) for it in items]
+    present = {ref_of(it) for it in items}
+    shown = set()
+    out = []
+    for it in items:
+        ref = ref_of(it)
+        g = ref_to_group.get(ref)
+        if g is None:
+            out.append((it, None))
+            continue
+        if id(g) in shown:
+            continue
+        primary_ref = tuple(by_rid[g["primary"]]["ref"])
+        if ref != primary_ref and primary_ref in present:
+            continue
+        shown.add(id(g))
+        out.append((it, g))
+    return out
+
+
+def _conflict_text(group, by_rid):
+    """Render a group's conflicts from the MEMBERS' real values — the model
+    named the field, it never picked a winner. Times carry a zone abbreviation
+    when the record's zone is known and not HOME_TZ.
+
+    Conflicts are code-derived (ruled 2026-09-04): synthesize.derive_conflicts
+    computes them from the records after validation, and time is the only
+    field it emits — the model is no longer asked, because conflicts were the
+    one axis that moved between otherwise identical live runs. Rendering is
+    unchanged; the location/date/summary branches below are reachable only for
+    a grouping built elsewhere.
+
+    Guard (ruled 2026-09-04): an all-day record has no time to disagree with.
+    filter_time_conflict narrows a time conflict to the members that carry a
+    time and drops it when fewer than two distinct times remain. The derivation
+    satisfies that by construction, so this call is defending a grouping that
+    did not come through validate() — a fixture recorded before the ruling."""
+    parts = []
+    for raw in group["conflicts"]:
+        c = filter_time_conflict(raw, by_rid)
+        if c is None:
+            continue
+        values = []
+        for m in c["members"]:
+            r = by_rid[m]
+            if c["field"] == "time":
+                v = format_time(r.get("time")) or "all day"
+                zone = r.get("zone")
+                if zone and zone != HOME_TZ and r.get("time") and r.get("date"):
+                    try:
+                        inst = datetime.combine(
+                            date.fromisoformat(r["date"]),
+                            datetime.strptime(r["time"], "%H:%M").time(),
+                            tzinfo=ZoneInfo(zone))
+                        v += " " + inst.strftime("%Z")
+                    except (ValueError, KeyError):
+                        pass
+            elif c["field"] == "location":
+                v = (r.get("location") or "none")[:40]
+            elif c["field"] == "date":
+                v = format_date(r.get("date"))
+            else:
+                v = None
+            if v is not None and v not in values:
+                values.append(v)
+        if values:
+            parts.append(f"{c['field']}: " + " / ".join(values))
+        else:
+            parts.append(c["field"])
+    return "(sources disagree on " + "; ".join(parts) + ")" if parts else ""
+
+
+def _mark(text, group):
+    """The (×N) marker on a synthesized line: a wrong merge leaves a trace on
+    the phone. Verification window through the 9/5 trip (ruled 2026-09-04)."""
+    if group and len(group["members"]) > 1:
+        text += f" (×{len(group['members'])})"
+    return text
+
+
+def render_attention(items, grouping=None):
     """Build the overdue block as a list of lines, sorted by date ascending.
     Every item here has a parseable date by construction. No day counts — the
-    date says it. Returns [] if there is nothing overdue."""
+    date says it. Grouped members fold into their primary. Returns [] if there
+    is nothing overdue."""
     if not items:
         return []
+    ref_to_group, by_rid = _index_grouping(grouping)
+    ordered = sorted(items, key=lambda c: parse_iso_date(c["date"]))
     lines = ["NEEDS ATTENTION"]
-    for c in sorted(items, key=lambda c: parse_iso_date(c["date"])):
-        lines.append(f"• {c['what']} — was due {format_date(c['date'])}")
+    for c, g in _fold(ordered, lambda c: ("commitment", c["id"]), ref_to_group, by_rid):
+        lines.append(f"• {_mark(c['what'], g)} — was due {format_date(c['date'])}")
     return lines
 
-def render_todo(items):
+def render_todo(items, grouping=None):
     """Build the to-do block as a list of lines: dated items first, sorted by
-    date ascending, then dateless items in their existing order. Returns [] if
-    there is nothing to do."""
+    date ascending, then dateless items in their existing order. Grouped
+    members fold into their primary. Returns [] if there is nothing to do."""
     if not items:
         return []
+    ref_to_group, by_rid = _index_grouping(grouping)
     dated = [c for c in items if parse_iso_date(c.get("date")) is not None]
     dateless = [c for c in items if parse_iso_date(c.get("date")) is None]
     dated.sort(key=lambda c: parse_iso_date(c["date"]))
     lines = ["TO DO"]
-    for c in dated:
-        lines.append(f"• {c['what']} — due {format_date(c['date'])}")
-    for c in dateless:
-        lines.append(f"• {c['what']}")
+    for c, g in _fold(dated + dateless, lambda c: ("commitment", c["id"]), ref_to_group, by_rid):
+        if parse_iso_date(c.get("date")) is not None:
+            lines.append(f"• {_mark(c['what'], g)} — due {format_date(c['date'])}")
+        else:
+            lines.append(f"• {_mark(c['what'], g)}")
     return lines
 
 def merge_coming_up(events, appointment_commitments, today):
     """Normalize calendar events and appointment commitments into one
-    date-sorted timeline. Each item is {sort_key, label, summary}.
+    date-sorted timeline. Each item is {sort_key, ref, date, time_label, summary}.
+
+    ref mirrors synthesize.build_records exactly — ("event", id, "start" |
+    "end" | "single") or ("commitment", key) — so a grouping computed over
+    those records joins back to these items. time_label is the time part
+    only; the day renders once per day-block (S5), never per line.
+
+    S2 (ruled 2026-09-03): a multi-day all-day span renders as endpoints
+    only — a start-day item ("all day") and a last-day item ("Last day"),
+    nothing in between. A start day already past emits no item; a last day
+    beyond the horizon emits none either. This replaces the "Now–<end>"
+    in-progress line.
 
     sort_key's first element is always a date, never a datetime — comparing the
     two raises TypeError, and all-day events already carry plain dates."""
+    horizon = today + timedelta(days=HORIZON_DAYS)
     merged = []
+
+    def add(d, start_time, ref, time_label, summary):
+        merged.append({
+            "sort_key": (d, start_time),
+            "ref": ref,
+            "date": d,
+            "time_label": time_label,
+            "summary": summary,
+        })
+
     for e in events:
         if e["all_day"]:
-            d = e["start_local"]
-            start_time = time.min
+            start = e["start_local"]
             # Google all-day end dates are EXCLUSIVE: an Aug 2-8 stay
             # arrives with end 2026-08-09. Subtract one day for the
             # true last day.
-            display_end = e["end_local"] - timedelta(days=1)
-            if d < today and display_end == today:
-                # Final morning of the span.
-                label = f"Last day: {weekday_date(display_end)} — all day"
-            elif d < today and display_end > today:
-                # In progress: lead with the span running from now,
-                # not the stale start date.
-                label = f"Now–{weekday_date(display_end)} — all day"
-            else:
-                label = f"{weekday_date(d)} — all day"
+            last = e["end_local"] - timedelta(days=1)
+            if last <= start:
+                add(start, time.min, ("event", e["id"], "single"), "all day", e["summary"])
+                continue
+            if start >= today:
+                add(start, time.min, ("event", e["id"], "start"), "all day", e["summary"])
+            if last <= horizon:
+                add(last, time.min, ("event", e["id"], "end"), "Last day", e["summary"])
         else:
             d = e["start_local"].date()
             start_time = e["start_local"].time()
@@ -205,28 +336,19 @@ def merge_coming_up(events, appointment_commitments, today):
                 timerange = f"{start}–{end} {end_ampm}{e_suffix}"
             else:
                 timerange = f"{start} {start_ampm}{s_suffix}–{end} {end_ampm}{e_suffix}"
-            label = f"{weekday_date(d)} — {timerange}"
-        merged.append({
-            "sort_key": (d, start_time),
-            "label": label,
-            "summary": e["summary"],
-        })
+            add(d, start_time, ("event", e["id"], "single"), timerange, e["summary"])
     for c in appointment_commitments:
         d = parse_iso_date(c["date"])
         pretty = format_time(c.get("time"))
-        label = f"{weekday_date(d)} — {pretty}" if pretty else weekday_date(d)
         try:
             start_time = datetime.strptime(c.get("time"), "%H:%M").time()
         except (TypeError, ValueError):
             # Unparseable or absent: sort it to the head of its day.
             start_time = time.min
-        merged.append({
-            "sort_key": (d, start_time),
-            "label": label,
-            "summary": c["what"],
-        })
+        add(d, start_time, ("commitment", c["id"]), pretty, c["what"])
     merged.sort(key=lambda m: m["sort_key"])
     return merged
+
 
 ANCHOR_RUN = 3
 
@@ -296,17 +418,60 @@ def collapse_display(merged):
     return out
 
 
-def render_coming_up(merged):
-    """Build the merged timeline as a list of lines. Purely informational —
-    never touches state. Returns [] if the timeline is empty."""
+def _visible_timeline(merged, grouping):
+    """The timeline as it will render: [(item, group_or_None)]. With a
+    grouping, members fold into primaries; without one (fallback), the 9/2
+    exact-anchor collapse_display path stands in."""
+    ref_to_group, by_rid = _index_grouping(grouping)
+    if ref_to_group is None:
+        return [(it, None) for it in collapse_display(merged)], None
+    return _fold(merged, lambda it: it["ref"], ref_to_group, by_rid), by_rid
+
+
+def render_coming_up(merged, grouping=None):
+    """Build the timeline in the day-block register (S5, ruled 2026-09-03):
+    one unbulleted header per day — "DDD, Mon D", plus " — <name>: <phase>"
+    when a group on that day carries a trip container — then indented lines
+    "  • <time> — <summary>". The renderer prints a container title if a group
+    supplies one and never inspects it.
+
+    Fallback (ruled 2026-09-04, option A): same register, bare headers, the
+    collapse_display path, and one note line naming why. Purely
+    informational — never touches state. Returns [] if the timeline is empty."""
     if not merged:
         return []
+    visible, by_rid = _visible_timeline(merged, grouping)
     lines = ["COMING UP"]
-    for m in merged:
-        lines.append(f"• {m['label']} — {m['summary']}")
+    if by_rid is None:
+        cause = (grouping or {}).get("cause")
+        lines.append("(ungrouped — synthesis off)" if cause == "off"
+                     else "(ungrouped — synthesis unavailable)")
+    containers = {}
+    for it, g in visible:
+        if g and g["container"] and it["date"] not in containers:
+            containers[it["date"]] = g["container"]
+    current = None
+    for it, g in visible:
+        if it["date"] != current:
+            current = it["date"]
+            header = weekday_date(current)
+            c = containers.get(current)
+            if c:
+                header += f" — {c['name']}: {c['phase']}"
+            lines.append(header)
+        text = _mark(it["summary"], g)
+        if g and g["conflicts"]:
+            conflict = _conflict_text(g, by_rid)
+            if conflict:
+                text += " " + conflict
+        if it["time_label"]:
+            lines.append(f"  • {it['time_label']} — {text}")
+        else:
+            lines.append(f"  • {text}")
     return lines
 
-def build_digest(state, events, today, compact_calendar=False, partition=None):
+def build_digest(state, events, today, compact_calendar=False, partition=None,
+                 grouping=None):
     """Compose the digest as a (title, body) tuple, excluding the run summary.
 
     title is the header line; body is everything after it with no leading blank
@@ -321,23 +486,31 @@ def build_digest(state, events, today, compact_calendar=False, partition=None):
     happens once per run and write_back acts on exactly what gets rendered.
     When None it is computed here, which is what preview_digest.py and any
     other direct caller rely on. Pure either way — this function reads state
-    and renders strings, and never reaches Reminders."""
+    and renders strings, and never reaches Reminders.
+
+    grouping, when given, is {"records", "groups", "cause"} as run_digest
+    builds it from synthesize(); groups None means the fallback path, with
+    cause naming why. When None, the fallback renders with cause "off" — this
+    function never calls the API, so preview_digest.py stays $0 unless it
+    passes a grouping it recorded live."""
     d = parse_iso_date(today)
     title = f"Digest — {weekday_date(d)}"
     if partition is None:
         partition = partition_commitments(state["commitments"], d)
+    if grouping is None:
+        grouping = {"records": None, "groups": None, "cause": "off"}
     attention, todo, appointments = partition
     merged = merge_coming_up(events, appointments, d)
-    merged = collapse_display(merged)
-    attention_lines = render_attention(attention)
-    todo_lines = render_todo(todo)
+    attention_lines = render_attention(attention, grouping)
+    todo_lines = render_todo(todo, grouping)
     if compact_calendar:
-        # Count the merged timeline, not events — appointments live there too.
-        n = len(merged)
+        # Count the merged timeline, not events — appointments live there too,
+        # and folded members are not separate lines.
+        n = len(_visible_timeline(merged, grouping)[0])
         noun = "event" if n == 1 else "events"
         cal_lines = [f"COMING UP: {n} {noun} in the next {HORIZON_DAYS} days"] if n else []
     else:
-        cal_lines = render_coming_up(merged)
+        cal_lines = render_coming_up(merged, grouping)
 
     if not attention_lines and not todo_lines and not cal_lines:
         return title, "Nothing needs your attention today."
@@ -383,10 +556,20 @@ def run_digest():
     reconcile(state)
 
     partition = partition_commitments(state["commitments"], today_d)
-    attention, todo, _appointments = partition
-    write_back(state, attention, todo)
+    attention, todo, appointments = partition
+    # Synthesis runs once per run over exactly the partition that renders,
+    # so the grouping the page shows is the grouping write_back sees (S4).
+    records = build_records(events, attention, todo, appointments, today_d)
+    groups, cause = synthesize(records, today_d)
+    grouping = {
+        "records": records,
+        "groups": groups["groups"] if groups is not None else None,
+        "cause": cause,
+    }
+    write_back(state, attention, todo, grouping=grouping)
 
-    title, full_body = build_digest(state, events, today, partition=partition)
+    title, full_body = build_digest(state, events, today, partition=partition,
+                                    grouping=grouping)
     print(title + "\n\n" + full_body)
 
     open_total = sum(1 for c in state["commitments"].values() if c["status"] == "open")
