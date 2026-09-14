@@ -23,6 +23,8 @@ things.
 
 import json
 import re
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import sys
 import time as _time
 from datetime import date, timedelta
@@ -188,6 +190,41 @@ Records:
 """.format(today=today.isoformat(), records=json.dumps(public, indent=1))
 
 
+def _distinct_times(timed, by_id):
+    """Count the distinct times a set of timed members actually carry.
+
+    Ruled 2026-09-14: a time conflict is a disagreement about the instant,
+    not the clock string. Calendar records carry a zone (build_records reads
+    it off start_local); gmail commitments carry None, which means unknown,
+    not local. So: members with a zone compare as UTC instants; a member
+    without a zone agrees when its clock matches any zoned member's clock
+    and otherwise counts as its own distinct time. The false positive this
+    retires: the same flight stored as 19:30 America/New_York by one writer
+    and 18:30 America/Chicago by another rendered as "sources disagree."
+    Unparseable zones fall back to clock comparison rather than raising -
+    this is a display decision, not validation.
+    """
+    instants, zoned_clocks, bare_clocks = set(), set(), set()
+    for m in timed:
+        r = by_id[m]
+        clock, zone, d = r["time"], r.get("zone"), r.get("date")
+        if zone and d:
+            try:
+                if isinstance(d, str):
+                    d = datetime.fromisoformat(d).date()
+                hh, mm = clock.split(":")
+                local = datetime(d.year, d.month, d.day, int(hh), int(mm),
+                                 tzinfo=ZoneInfo(zone))
+                instants.add(local.astimezone(timezone.utc))
+                zoned_clocks.add(clock)
+                continue
+            except (ValueError, KeyError, AttributeError):
+                pass
+        bare_clocks.add(clock)
+    unresolved = {c for c in bare_clocks if c not in zoned_clocks}
+    return len(instants) + len(unresolved)
+
+
 def derive_conflicts(members, by_id):
     """A group's conflicts, computed from the records rather than reported.
 
@@ -203,13 +240,14 @@ def derive_conflicts(members, by_id):
     the merge it just made.
 
     Time is the only derived field. A time conflict exists when two or more
-    members carry distinct non-null times; its members are the ones that carry
+    members carry distinct non-null instants (see _distinct_times, ruled
+    2026-09-14: zones are honored, a clock string is not an instant); its members are the ones that carry
     a time. An all-day record has no time to disagree with (ruled 2026-09-04),
     so it is never counted and never listed. Returns the group's complete
     conflicts list - empty when there is nothing to report.
     """
     timed = [m for m in members if by_id[m].get("time")]
-    if len({by_id[m]["time"] for m in timed}) < 2:
+    if _distinct_times(timed, by_id) < 2:
         return []
     return [{"field": "time", "members": timed}]
 
@@ -237,7 +275,7 @@ def filter_time_conflict(conflict, by_id):
     if conflict["field"] != "time":
         return conflict
     timed = [m for m in conflict["members"] if by_id[m].get("time")]
-    if len({by_id[m]["time"] for m in timed}) < 2:
+    if _distinct_times(timed, by_id) < 2:
         return None
     return {"field": "time", "members": timed}
 
