@@ -98,11 +98,23 @@ def build_records(events, attention, todo, appointments, today):
     An all-day span yields TWO records - start day and last day - so S2
     (endpoints only) and S1 (same date, always) compose. A start day already
     past yields no start record: it would never render.
+
+    A field written here reaches the model only if PROMPT_FIELDS names it
+    (ruled 2026-09-14): the allowlist is withhold-by-default, so a field added
+    for the renderer's or write_back's benefit stays out of the model's view
+    until it is listed there deliberately.
+
+    Timed events carry the end as its own pair, end_time and end_zone:
+    fetch_calendar._parse_endpoint resolves each endpoint's timeZone
+    separately, so a cross-zone leg ends in the arrival zone, and an end clock
+    without its zone would be a clock string rather than an instant (the
+    distinction ruled 2026-09-14 for conflicts). All-day events and
+    commitments carry None for both, exactly as time and zone do.
     """
     records = []
 
     def add(kind, source, ref, when, when_time, zone, end_date, summary,
-            location, description):
+            location, description, end_time=None, end_zone=None):
         rid = f"r{len(records) + 1}"
         records.append({
             "id": rid,
@@ -112,6 +124,8 @@ def build_records(events, attention, todo, appointments, today):
             "date": when.isoformat() if when else None,
             "time": when_time,
             "zone": zone,
+            "end_time": end_time,
+            "end_zone": end_zone,
             "end_date": end_date.isoformat() if end_date else None,
             "summary": summary or "",
             "location": _snippet(location, 120),
@@ -136,9 +150,12 @@ def build_records(events, attention, todo, appointments, today):
                 None, None, last, e["summary"], loc, desc)
         else:
             s = e["start_local"]
+            end = e["end_local"]
             zone = getattr(s.tzinfo, "key", None)
             add("event", "calendar", ("event", e["id"], "single"), s.date(),
-                s.strftime("%H:%M"), zone, None, e["summary"], loc, desc)
+                s.strftime("%H:%M"), zone, None, e["summary"], loc, desc,
+                end_time=end.strftime("%H:%M"),
+                end_zone=getattr(end.tzinfo, "key", None))
 
     def add_commitment(kind, c):
         d = None
