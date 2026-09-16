@@ -237,7 +237,6 @@ Sequenced by reasoning, each behind its gate:
 
 Ruled, not built:
 
-- **`(×N)` marker removal** (ruled 2026-09-14) — remove it from `_mark` and `collapse_display`. The page reports; membership correctness is the synthesis contract's job, and the fallback's "synthesis unavailable" note is already its trace. Verify with a `preview_digest.py` replay on a synthesized morning and on a forced-fallback fixture
 - **S4 reminder-sharing test** — sharing in write-back and the one-read-per-id reconcile are exercised by neither a test nor production yet (see [Verification approach](#verification-approach))
 
 On the design table, each needing a ruling before build:

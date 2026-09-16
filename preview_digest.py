@@ -172,15 +172,15 @@ D4 = TODAY + timedelta(days=4)
 D5 = TODAY + timedelta(days=5)
 
 DUP_FIXTURES = [
-    # P1 — the 8/2 case pair, same time: collapses to the longer, (x2)
+    # P1 — the 8/2 case pair, same time: collapses to the longer summary
     commitment("d1", "Check-in at Fixture Inn Seattle North", "appointment", iso(4), time="15:00"),
     commitment("d2", "Hotel check-in at Fixture Inn Seattle North", "appointment", iso(4), time="15:00"),
     # P2 — thread double-extraction (identical text) + parser calendar event
-    # at the same start (see DUP_EVENTS): one line, (x3), appointment label
-    # survives, NOT the parser's leg-arrival range
+    # at the same start (see DUP_EVENTS): one line from three items, the
+    # appointment label surviving, NOT the parser's leg-arrival range
     commitment("d3", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR", "appointment", iso(4), time="17:55"),
     commitment("d4", "Delta flight TPA to SEA (via ATL) - Confirmation FIXTUR", "appointment", iso(4), time="17:55"),
-    # P4 — punctuation/wording drift ("pick-up", "intermediate"): (x2)
+    # P4 — punctuation/wording drift ("pick-up", "intermediate"): one line
     commitment("d5", "Alamo intermediate car rental pick-up at Fixture Airport", "appointment", iso(4), time="23:00"),
     commitment("d6", "Alamo car rental pick-up at Fixture Airport", "appointment", iso(4), time="23:00"),
     # N1 — check-out vs check-in, same hotel, different times: TWO lines
@@ -199,7 +199,7 @@ DUP_FIXTURES = [
 ]
 
 DUP_EVENTS = [
-    # P3 — two calendar writers, all-day, "Stay:" vs "Stay at": one line, (x2).
+    # P3 — two calendar writers, all-day, "Stay:" vs "Stay at": one line.
     # N4 lives here too: both share their date with P1 but time.min != 15:00,
     # so the stay pair and the check-in pair render as SEPARATE lines.
     {

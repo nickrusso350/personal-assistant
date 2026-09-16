@@ -227,14 +227,6 @@ def _conflict_text(group, by_rid):
     return "(sources disagree on " + "; ".join(parts) + ")" if parts else ""
 
 
-def _mark(text, group):
-    """The (×N) marker on a synthesized line: a wrong merge leaves a trace on
-    the phone. Verification window through the 9/5 trip (ruled 2026-09-04)."""
-    if group and len(group["members"]) > 1:
-        text += f" (×{len(group['members'])})"
-    return text
-
-
 def render_attention(items, grouping=None):
     """Build the overdue block as a list of lines, sorted by date ascending.
     Every item here has a parseable date by construction. No day counts — the
@@ -245,8 +237,8 @@ def render_attention(items, grouping=None):
     ref_to_group, by_rid = _index_grouping(grouping)
     ordered = sorted(items, key=lambda c: parse_iso_date(c["date"]))
     lines = ["NEEDS ATTENTION"]
-    for c, g in _fold(ordered, lambda c: ("commitment", c["id"]), ref_to_group, by_rid):
-        lines.append(f"• {_mark(c['what'], g)} — was due {format_date(c['date'])}")
+    for c, _ in _fold(ordered, lambda c: ("commitment", c["id"]), ref_to_group, by_rid):
+        lines.append(f"• {c['what']} — was due {format_date(c['date'])}")
     return lines
 
 def render_todo(items, grouping=None):
@@ -260,11 +252,11 @@ def render_todo(items, grouping=None):
     dateless = [c for c in items if parse_iso_date(c.get("date")) is None]
     dated.sort(key=lambda c: parse_iso_date(c["date"]))
     lines = ["TO DO"]
-    for c, g in _fold(dated + dateless, lambda c: ("commitment", c["id"]), ref_to_group, by_rid):
+    for c, _ in _fold(dated + dateless, lambda c: ("commitment", c["id"]), ref_to_group, by_rid):
         if parse_iso_date(c.get("date")) is not None:
-            lines.append(f"• {_mark(c['what'], g)} — due {format_date(c['date'])}")
+            lines.append(f"• {c['what']} — due {format_date(c['date'])}")
         else:
-            lines.append(f"• {_mark(c['what'], g)}")
+            lines.append(f"• {c['what']}")
     return lines
 
 def merge_coming_up(events, appointment_commitments, today):
@@ -391,9 +383,15 @@ def collapse_display(merged):
     The survivor is the WHOLE item with the longest summary, label included —
     never a composite. Gluing one source's time range onto another's summary
     can state a false fact (a parser's leg-arrival time on a full-itinerary
-    line). The survivor's summary gets a "(xN)" marker so a collapse is
-    visible on the phone: a wrong collapse leaves a trace instead of silently
-    eating an obligation.
+    line).
+
+    The survivor carried a "(xN)" marker until it was retired on both render
+    paths (ruled 2026-09-14, removed 2026-09-15): the page reports, and
+    membership correctness belongs to the synthesis contract, verified by
+    replay_mornings.py and synth_dump.py rather than by a counter on the
+    consumer surface. On this path the "(ungrouped - synthesis unavailable)"
+    note render_coming_up already prints is the trace that a collapse
+    happened here at all.
 
     Grouping is transitive by any member (A~B and B~C group all three)."""
     groups = []
@@ -409,12 +407,7 @@ def collapse_display(merged):
     out = []
     for g in groups:
         # max() returns the first maximal element, so ties keep merge order.
-        survivor = max(g["items"], key=lambda m: len(m["summary"]))
-        n = len(g["items"])
-        if n == 1:
-            out.append(survivor)
-        else:
-            out.append({**survivor, "summary": f"{survivor['summary']} (\u00d7{n})"})
+        out.append(max(g["items"], key=lambda m: len(m["summary"])))
     return out
 
 
@@ -459,7 +452,7 @@ def render_coming_up(merged, grouping=None):
             if c:
                 header += f" — {c['name']}: {c['phase']}"
             lines.append(header)
-        text = _mark(it["summary"], g)
+        text = it["summary"]
         if g and g["conflicts"]:
             conflict = _conflict_text(g, by_rid)
             if conflict:
