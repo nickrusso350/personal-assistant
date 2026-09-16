@@ -159,8 +159,21 @@ def build_records(events, attention, todo, appointments, today):
     return records
 
 
+# Every field the model may see, in the order build_records writes them.
+# An ALLOWLIST, not an exclusion (ruled 2026-09-14, "identity is code's
+# domain"): a new key on a record is withheld until it is named here, so
+# adding a field for the renderer's benefit cannot widen the model's view by
+# accident. ref - and any other pipeline key, anything the pipeline mints or
+# stores to find a record again - stays out by construction, because only
+# these names can pass.
+PROMPT_FIELDS = ("id", "kind", "source", "date", "time", "zone", "end_date",
+                 "summary", "location", "description_snippet", "identifiers")
+
+
 def _prompt(records, today):
-    public = [{k: v for k, v in r.items() if k != "ref"} for r in records]
+    # "if k in r" reproduces the old k != "ref" filter exactly for a record
+    # missing a field: absent stays absent, never a null the model must read.
+    public = [{k: r[k] for k in PROMPT_FIELDS if k in r} for r in records]
     return """You are a precise grouping tool for a personal daily digest. You receive the day's records - calendar events and commitments extracted from email - and decide which records describe the SAME real-world obligation. You return structure only. You never restate, correct, or invent any fact.
 
 Today's date is {today}.
