@@ -7,10 +7,25 @@ One API call per morning. Touches no state, writes no files.
 
 Usage: python3 replay_mornings.py 2026-09-11 2026-09-12 2026-09-13
 """
-import contextlib, io, json, os, sys, datetime
+import contextlib, io, json, os, socket, subprocess, sys, datetime
 from synthesize import synthesize
 
+REPO = os.path.dirname(os.path.abspath(__file__))
 LOG = os.path.expanduser("~/Library/Logs/personal_assistant/digest.out")
+
+
+def provenance():
+    """Instruments identify themselves (working rule, 2026-09-14)."""
+    try:
+        head = subprocess.run(
+            ["git", "log", "-1", "--oneline"],
+            cwd=REPO, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        head = "(git unavailable)"
+    print(f"host: {socket.gethostname()}")
+    print(f"pwd:  {os.getcwd()}")
+    print(f"head: {head}\n")
 
 
 def load(dates):
@@ -41,6 +56,7 @@ def refsets(groups, by_id):
 
 
 def main():
+    provenance()
     dates = sys.argv[1:]
     if not dates:
         sys.exit("give one or more dates")

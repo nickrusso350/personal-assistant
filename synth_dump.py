@@ -7,24 +7,47 @@ bring a morning into a chat session. Identifier masking is stable within a
 dump (same value always gets the same token, so shared-identifier evidence
 survives) and meaningless across dumps (sequential by first appearance).
 
+end_time and end_zone are shown unmasked (ruled 2026-09-17): a clock string
+and an IANA zone name carry nothing to mask, and they are exactly what a
+conflict diagnosis needs to read. They joined KEEP on the same date; before
+that they fell through to the unexpected-keys NOTE, which is the tripwire
+working - a field added to a record must be classified deliberately.
+
 Usage:  python3 synth_dump.py            list available dates
         python3 synth_dump.py 2026-09-12 dump that morning
 """
 import json
 import os
 import re
+import socket
+import subprocess
 import sys
 from collections import OrderedDict
 
+REPO = os.path.dirname(os.path.abspath(__file__))
 LOG = os.path.expanduser("~/Library/Logs/personal_assistant/digest.out")
 PREFIX = "SYNTHESIS "
-KEEP = ["id", "kind", "source", "date", "time", "zone", "end_date",
-        "summary", "location", "identifiers"]
+KEEP = ["id", "kind", "source", "date", "time", "zone", "end_time", "end_zone",
+        "end_date", "summary", "location", "identifiers"]
 DROP = ["description_snippet", "ref"]
 
 LONGNUM = re.compile(r"\d{5,}")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 PHONE = re.compile(r"\+?\d[\d\s().-]{7,}\d")
+
+
+def provenance():
+    """Instruments identify themselves (working rule, 2026-09-14)."""
+    try:
+        head = subprocess.run(
+            ["git", "log", "-1", "--oneline"],
+            cwd=REPO, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        head = "(git unavailable)"
+    print(f"host: {socket.gethostname()}")
+    print(f"pwd:  {os.getcwd()}")
+    print(f"head: {head}\n")
 
 
 def load_pairs():
@@ -86,6 +109,7 @@ def records_of(payload):
 
 
 def main():
+    provenance()
     if not os.path.exists(LOG):
         print("no log at " + LOG)
         return
