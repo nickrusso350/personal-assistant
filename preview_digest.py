@@ -255,6 +255,13 @@ EVENTS.extend(DUP_EVENTS)
 # no end item at all and the return line cannot be verified.
 #
 # The confirmation code is FIXTUR. The real one is never written down here.
+#
+# Rendering (ruled 2026-09-16): the flight group is a journey — its members
+# carry two distinct FLIGHT identifiers — so it renders as two endpoint
+# lines, "Departure: ..." from the primary and "Arrival: ..." from the member
+# whose end instant is latest, with the sources-disagree text suppressed. The
+# check-in and car groups carry no flight identifiers, are not journeys, and
+# render exactly as they did.
 F1_DEPART = TODAY + timedelta(days=1)
 F1_RETURN = TODAY + timedelta(days=7)
 

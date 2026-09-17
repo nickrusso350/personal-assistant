@@ -259,6 +259,65 @@ def render_todo(items, grouping=None):
             lines.append(f"• {c['what']}")
     return lines
 
+def _zone_suffix(dt, labeled):
+    """The zone abbreviation, as " EDT", for an aware datetime that should
+    carry it — otherwise the empty string.
+
+    %Z on an aware datetime resolves EDT/EST correctly for the instant and
+    costs far fewer bytes than the IANA key. A naive datetime has no key and
+    is never labeled: "None" in a digest line is worse than no label at all.
+    """
+    abbr = dt.strftime("%Z")
+    key = getattr(dt.tzinfo, "key", None)
+    return f" {abbr}" if labeled and key and abbr else ""
+
+
+def _time_label(start, end=None, labeled=False):
+    """The time part of a timeline line, built from aware datetimes.
+
+    Extracted from merge_coming_up 2026-09-16 with its behaviour unchanged,
+    so one function owns the format wherever a line needs it.
+
+    labeled applies to the SINGLE-ENDPOINT form only. It forces the zone
+    abbreviation on regardless of HOME_TZ, and defaults False so every caller
+    that predates it renders as before. The journey renderer sets it when a
+    journey's departure and arrival zones differ: those are two separate
+    lines, so neither call can see the other's zone, and the cross-zone rule
+    below has nothing to compare. The range form ignores it — nothing calls a
+    range with it set, and unproven behaviour does not belong in the renderer
+    (ruled 2026-09-16).
+
+    A bare time implicitly claims the machine's zone, so any endpoint that
+    isn't in HOME_TZ is labeled, and BOTH endpoints are labeled when the two
+    differ - one suffix would otherwise appear to cover both. The comparison
+    is on the IANA key, which is stable (HOME_TZ never equals "EDT"); the
+    display is the abbreviation.
+
+    With no end, the label is the single start endpoint, labeled by the same
+    not-HOME_TZ rule. With an end, it is the range, and a shared meridiem
+    collapses to one ("10:00-11:00 AM") unless the zones differ, where
+    collapsing would hide which clock belongs to which zone.
+    """
+    start_zone = getattr(start.tzinfo, "key", None)
+    s_clock = start.strftime("%I:%M").lstrip("0")
+    s_ampm = start.strftime("%p")
+    if end is None:
+        return f"{s_clock} {s_ampm}" + _zone_suffix(
+            start, labeled or (bool(start_zone) and start_zone != HOME_TZ))
+
+    end_zone = getattr(end.tzinfo, "key", None)
+    cross_zone = bool(start_zone and end_zone and start_zone != end_zone)
+    e_clock = end.strftime("%I:%M").lstrip("0")
+    e_ampm = end.strftime("%p")
+    e_suffix = _zone_suffix(
+        end, bool(end_zone) and (cross_zone or end_zone != HOME_TZ))
+    if s_ampm == e_ampm and not cross_zone:
+        return f"{s_clock}–{e_clock} {e_ampm}{e_suffix}"
+    s_suffix = _zone_suffix(
+        start, bool(start_zone) and (cross_zone or start_zone != HOME_TZ))
+    return f"{s_clock} {s_ampm}{s_suffix}–{e_clock} {e_ampm}{e_suffix}"
+
+
 def merge_coming_up(events, appointment_commitments, today):
     """Normalize calendar events and appointment commitments into one
     date-sorted timeline. Each item is {sort_key, ref, date, time_label, summary}.
@@ -305,30 +364,8 @@ def merge_coming_up(events, appointment_commitments, today):
         else:
             d = e["start_local"].date()
             start_time = e["start_local"].time()
-            start = e["start_local"].strftime("%I:%M").lstrip("0")
-            end = e["end_local"].strftime("%I:%M").lstrip("0")
-            start_ampm = e["start_local"].strftime("%p")
-            end_ampm = e["end_local"].strftime("%p")
-            # A bare time implicitly claims the machine's zone. Label any
-            # endpoint that isn't in HOME_TZ; label both when the two
-            # endpoints differ, or one suffix would appear to cover both.
-            # Compare on the IANA key (stable: HOME_TZ never equals "EDT"),
-            # display the abbreviation (%Z on an aware datetime resolves
-            # EDT/EST correctly for the instant, and costs far fewer bytes).
-            start_zone = getattr(e["start_local"].tzinfo, "key", None)
-            end_zone = getattr(e["end_local"].tzinfo, "key", None)
-            # An absent zone (naive datetime) is never labeled: "None" in a
-            # digest line is worse than no label at all.
-            cross_zone = bool(start_zone and end_zone and start_zone != end_zone)
-            s_abbr = e["start_local"].strftime("%Z")
-            e_abbr = e["end_local"].strftime("%Z")
-            s_suffix = f" {s_abbr}" if start_zone and s_abbr and (cross_zone or start_zone != HOME_TZ) else ""
-            e_suffix = f" {e_abbr}" if end_zone and e_abbr and (cross_zone or end_zone != HOME_TZ) else ""
-            if start_ampm == end_ampm and not cross_zone:
-                timerange = f"{start}–{end} {end_ampm}{e_suffix}"
-            else:
-                timerange = f"{start} {start_ampm}{s_suffix}–{end} {end_ampm}{e_suffix}"
-            add(d, start_time, ("event", e["id"], "single"), timerange, e["summary"])
+            add(d, start_time, ("event", e["id"], "single"),
+                _time_label(e["start_local"], e["end_local"]), e["summary"])
     for c in appointment_commitments:
         d = parse_iso_date(c["date"])
         pretty = format_time(c.get("time"))
@@ -421,6 +458,143 @@ def _visible_timeline(merged, grouping):
     return _fold(merged, lambda it: it["ref"], ref_to_group, by_rid), by_rid
 
 
+def _is_journey(group, by_rid):
+    """True when the group's members carry two or more distinct "FLIGHT "
+    identifiers (ruled 2026-09-16).
+
+    Exact string comparison over the identifiers build_records already
+    extracted — no parsing here, no fuzzy match. Two flight numbers on one
+    date is the shape prompt rule 3 merges into one journey; a single flight
+    number is an ordinary flight and keeps its range line unchanged.
+    """
+    flights = {identifier
+               for m in group["members"]
+               for identifier in (by_rid[m].get("identifiers") or [])
+               if identifier.startswith("FLIGHT ")}
+    return len(flights) >= 2
+
+
+def _record_instant(record, clock_key, zone_key):
+    """A record's clock as an instant, or None when the pair is absent or
+    unparseable. Rebuilt from date + clock + ZoneInfo(zone), the way
+    _conflict_text rebuilds one to resolve an abbreviation. Never raises: a
+    display decision, not validation."""
+    clock = record.get(clock_key)
+    zone = record.get(zone_key)
+    day = record.get("date")
+    if not clock or not zone or not day:
+        return None
+    try:
+        return datetime.combine(date.fromisoformat(day),
+                                datetime.strptime(clock, "%H:%M").time(),
+                                tzinfo=ZoneInfo(zone))
+    except (ValueError, KeyError):
+        return None
+
+
+def _end_instant(record):
+    """The record's end as an instant, or None when it carries no end pair.
+
+    A record holds clocks, not instants, so an end that lands before its own
+    start is the next day — a red-eye landing at 6:15 AM after a 9:35 PM
+    departure — and rolls forward one day.
+    """
+    end = _record_instant(record, "end_time", "end_zone")
+    if end is None:
+        return None
+    start = _record_instant(record, "time", "zone")
+    if start is not None and end < start:
+        end += timedelta(days=1)
+    return end
+
+
+def _framed(instant, day):
+    """The instant's clock and zone, moved onto an item-frame day.
+
+    The displayed instant is rebuilt on the date actually shown, so %Z
+    resolves the abbreviation for that day rather than for whatever day the
+    record was recorded on (ruled 2026-09-16).
+    """
+    return datetime.combine(day, instant.time(), tzinfo=instant.tzinfo)
+
+
+def _journey_items(item, group, by_rid):
+    """A journey group's display items: Departure, and Arrival when some
+    member carries an end (ruled 2026-09-16).
+
+    THE FRAME RULE (ruled 2026-09-16): in the renderer a record may supply a
+    clock, a zone, and a day DIFFERENCE — never an absolute date. Absolute
+    dates come from merged items only. A recorded grouping replays against
+    items rebuilt today, so a record's date sits in the frame it was recorded
+    in while every item sits in today's; reading the date off a record put
+    this Arrival line three days behind the rest of its own trip, under a day
+    header of its own. The offset — 0, or 1 for a red-eye — is a difference,
+    so it travels; the day it lands on is the primary item's.
+
+    One journey is one obligation, so its legs never earn their own lines —
+    but the two endpoints are what change what Nick does, and a range built
+    from one leg stated the wrong arrival. Departure renders the primary's
+    start; Arrival renders the member whose end instant is LATEST, which is
+    the journey's true arrival however the legs are ordered. Ties go to the
+    primary when it is among them, else the first in member order.
+
+    The Arrival is its own timeline item, dated and sorted by the arrival
+    (ruled 2026-09-16), keyed the way every other timed item is keyed: the
+    local date and clock of the endpoint, in its own zone.
+
+    Both endpoints carry their zone when the two differ, which is the
+    existing cross-zone rule applied across two lines instead of within one.
+
+    DISPLAY ONLY: these items are built here, rendered here, and reach
+    nothing upstream — not state, not identity, not Reminders. Nothing
+    returns them; render_coming_up turns them into strings.
+    """
+    primary = by_rid[group["primary"]]
+    start = _record_instant(primary, "time", "zone")
+    ends = [(by_rid[m], _end_instant(by_rid[m])) for m in group["members"]]
+    ends = [(record, instant) for record, instant in ends if instant is not None]
+
+    departure = {**item, "summary": f"Departure: {item['summary']}",
+                 "journey": True}
+    if not ends:
+        # No member carries an end: the Departure line stands alone.
+        if start is not None:
+            departure["time_label"] = _time_label(_framed(start, item["date"]))
+        return [(departure, group)]
+
+    latest = max(instant for _, instant in ends)
+    tied = [record for record, instant in ends if instant == latest]
+    arrival = next((record for record in tied if record["id"] == primary["id"]),
+                   tied[0])
+    cross = bool(primary.get("zone") and arrival.get("end_zone")
+                 and primary["zone"] != arrival["end_zone"])
+    if start is not None:
+        departure["time_label"] = _time_label(
+            _framed(start, item["date"]), labeled=cross)
+
+    # The day difference travels; the absolute date does not. Both sides of
+    # the subtraction are in the record frame, and the roll is already in
+    # latest, so the result is 0 or 1 — computed, never assumed.
+    primary_day = None
+    if primary.get("date"):
+        try:
+            primary_day = date.fromisoformat(primary["date"])
+        except ValueError:
+            primary_day = None
+    offset_days = (latest.date() - primary_day).days if primary_day else 0
+    arrival_date = item["date"] + timedelta(days=offset_days)
+    shown = _framed(latest, arrival_date)
+    arrival_item = {
+        "sort_key": (arrival_date, shown.time()),
+        "ref": tuple(arrival["ref"]),
+        "date": arrival_date,
+        "time_label": _time_label(shown, labeled=cross),
+        "summary": f"Arrival: {arrival['summary']}",
+        "journey": True,
+    }
+    return [(departure, group), (arrival_item, group)]
+
+
 def render_coming_up(merged, grouping=None):
     """Build the timeline in the day-block register (S5, ruled 2026-09-03):
     one unbulleted header per day — "DDD, Mon D", plus " — <name>: <phase>"
@@ -434,6 +608,19 @@ def render_coming_up(merged, grouping=None):
     if not merged:
         return []
     visible, by_rid = _visible_timeline(merged, grouping)
+    if by_rid is not None:
+        # Journey groups render as two endpoint lines; the sort restores
+        # timeline order once the Arrival joins. Stable, so every other item
+        # keeps its place. The fallback and synthesis-off paths have no
+        # groups and never reach here.
+        expanded = []
+        for it, g in visible:
+            if g and _is_journey(g, by_rid):
+                expanded.extend(_journey_items(it, g, by_rid))
+            else:
+                expanded.append((it, g))
+        expanded.sort(key=lambda pair: pair[0]["sort_key"])
+        visible = expanded
     lines = ["COMING UP"]
     if by_rid is None:
         cause = (grouping or {}).get("cause")
@@ -453,7 +640,10 @@ def render_coming_up(merged, grouping=None):
                 header += f" — {c['name']}: {c['phase']}"
             lines.append(header)
         text = it["summary"]
-        if g and g["conflicts"]:
+        # A journey's legs disagreeing about departure time is the grouping
+        # working, not two sources contradicting each other: its endpoints
+        # now render as their own lines (ruled 2026-09-16).
+        if g and g["conflicts"] and not it.get("journey"):
             conflict = _conflict_text(g, by_rid)
             if conflict:
                 text += " " + conflict
