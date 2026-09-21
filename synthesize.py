@@ -4,11 +4,22 @@ records, returning a GROUPING that code validates and the renderer uses.
 Design record: Synthesis_Design_2026-09-03.md. Rulings S1-S6 (2026-09-03).
 
 The contract: the model proposes structure only, never facts. It returns
-which record ids are one real-world obligation, which member is primary,
-an optional trip container {name, phase}, and which fields the members
-disagree on. The renderer builds every line from the primary record's real
-fields. The model never emits a time, a code, or a flight number, so a
-hallucinated fact is impossible by construction.
+which record ids are one real-world obligation, which member is primary, and
+an optional trip container {name, phase}. That is the whole reply.
+
+Disagreement is code's, not the model's (corrected 2026-09-21; the model has
+never reported it). derive_conflicts compares the members' own stored fields,
+and _distinct_times compares instants rather than clock strings (ruled
+2026-09-14). Rule 5 of _prompt tells the model the opposite of a job here:
+time never separates records, and the disagreement is not its concern.
+
+The renderer builds every line from the members' real fields. Which member
+supplies which line is the renderer's rule, not the model's: a journey's
+Arrival comes from the member whose end instant is latest, which need not be
+the one the model marked primary (ruled 2026-09-16). The model never emits a
+time, a code, or a flight number, so a hallucinated fact is impossible by
+construction; the trip container name is the one piece of model-authored text
+that reaches the page, and _prompt forbids inventing it.
 
 Extraction (extract.py, per message) is untouched. State identity
 (gmail message id, array position) is untouched. This stage is display and
@@ -54,10 +65,41 @@ _FLIGHT_RE = re.compile(
 )
 
 
-def _log(kind, payload):
+def _log(kind, payload, log=True):
     """One line per entry, JSON payload, SYNTHESIS prefix. stdout is where
-    launchd sends the run, so this lands in digest.out beside RUN START."""
+    launchd sends the run, so this lands in digest.out beside RUN START.
+
+    SYNTHESIS INPUT logs the records as code built them, including the fields
+    withheld from the model (ref, end_time, end_zone). It is not evidence of
+    what the model saw; capture_prompt.py is (ruled 2026-09-17). The label
+    stays as it reads: replay_mornings.py and synth_dump.py match the kind
+    token by equality, and a rename would miss silently against every morning
+    already recorded.
+
+    log=False silences the line (ruled 2026-09-17, built 2026-09-21). Logging
+    is on by omission, so the scheduled path keeps it without asking; a caller
+    that must stay quiet says so.
+    """
+    if not log:
+        return
     print(f"SYNTHESIS {kind} {json.dumps(payload, default=str)}")
+
+
+def _log_records(records):
+    """The records as the INPUT line carries them: everything built, minus
+    description_snippet (ruled 2026-09-17, built 2026-09-21).
+
+    digest.out held every snippet unmasked; synth_dump.py masks at read time,
+    but the log itself should not carry it. This drops it from the log only -
+    the field stays in the record and in PROMPT_FIELDS, so the prompt is
+    unchanged. ref, end_time, and end_zone stay: they are withheld from the
+    model, not from the log. The cost, accepted when this was ruled: a replay
+    now reproduces less than the live run saw.
+    """
+    return [
+        {k: v for k, v in record.items() if k != "description_snippet"}
+        for record in records
+    ]
 
 
 def extract_identifiers(*texts):
@@ -404,7 +446,7 @@ def _last_json_object(text):
     return None
 
 
-def _call_model(prompt):
+def _call_model(prompt, log=True):
     """One synthesis call. Temperature 0.
 
     THE REPLY CONTRACT (ruled 2026-09-04): reasoning is permitted first, and
@@ -453,28 +495,28 @@ def _call_model(prompt):
     if span is not None:
         start, end = span
         if start > 0:
-            _log("PREAMBLE", {"chars": start})
+            _log("PREAMBLE", {"chars": start}, log)
         raw_output = raw_output[start:end]
     return raw_output
 
 
-def synthesize(records, today):
+def synthesize(records, today, log=True):
     """Run the synthesis call over records. Returns (grouping, cause).
 
     grouping is the validated {"groups": [...]} or None. cause is None on
     success, "network" when every attempt failed to reach or get an answer
     from the API, or "validation" when the answer did not parse or did not
     pass validate(). Never raises: S6."""
-    _log("INPUT", {"today": today.isoformat(), "records": records})
+    _log("INPUT", {"today": today.isoformat(), "records": _log_records(records)}, log)
     if not records:
-        _log("RESULT", {"groups": []})
+        _log("RESULT", {"groups": []}, log)
         return {"groups": []}, None
     prompt = _prompt(records, today)
     raw = None
     last_error = None
     for attempt in range(RETRIES):
         try:
-            raw = _call_model(prompt)
+            raw = _call_model(prompt, log)
             break
         except Exception as error:
             last_error = error
@@ -482,18 +524,18 @@ def synthesize(records, today):
             if attempt < RETRIES - 1:
                 _time.sleep(BACKOFF_SECONDS[min(attempt, len(BACKOFF_SECONDS) - 1)])
     if raw is None:
-        _log("FALLBACK", {"cause": "network", "error": str(last_error)})
+        _log("FALLBACK", {"cause": "network", "error": str(last_error)}, log)
         return None, "network"
-    _log("RAW", {"text": raw})
+    _log("RAW", {"text": raw}, log)
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        _log("FALLBACK", {"cause": "validation", "error": "not valid JSON"})
+        _log("FALLBACK", {"cause": "validation", "error": "not valid JSON"}, log)
         return None, "validation"
     try:
         grouping = validate(parsed, records)
     except ValueError as error:
-        _log("FALLBACK", {"cause": "validation", "error": str(error)})
+        _log("FALLBACK", {"cause": "validation", "error": str(error)}, log)
         return None, "validation"
-    _log("RESULT", grouping)
+    _log("RESULT", grouping, log)
     return grouping, None

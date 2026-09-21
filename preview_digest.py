@@ -354,10 +354,14 @@ def record_live_grouping():
     Builds fixture 1's records, calls synthesize once, and writes
     {records, groups, cause} to fixtures/grouping_fixture1.json so every later
     default run replays it at $0. Returns the grouping dict.
+
+    log=False (ruled 2026-09-17, built 2026-09-21): this path prints to a
+    terminal, and the SYNTHESIS lines carry unmasked record text. The recorded
+    fixture is the evidence a preview run needs; the log line is not.
     """
     attention, todo, appointments = f1_partition()
     records = build_records(F1_EVENTS, attention, todo, appointments, TODAY)
-    groups, cause = synthesize(records, TODAY)
+    groups, cause = synthesize(records, TODAY, log=False)
     grouping = {
         "records": records,
         "groups": groups["groups"] if groups is not None else None,
