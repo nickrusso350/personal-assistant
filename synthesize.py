@@ -4,8 +4,17 @@ records, returning a GROUPING that code validates and the renderer uses.
 Design record: Synthesis_Design_2026-09-03.md. Rulings S1-S6 (2026-09-03).
 
 The contract: the model proposes structure only, never facts. It returns
-which record ids are one real-world obligation, which member is primary, and
-an optional trip container {name, phase}. That is the whole reply.
+which record ids are one real-world obligation, which member is primary, an
+optional trip container {name, phase}, and per group a render_zone and
+end_render_zone (ruled 2026-09-24, Option D). That is the whole reply.
+
+The two zones are IANA keys the model reads off place names in the record
+text - codes, cities, addresses, hotel names - and null when nothing names
+the place or the place is ambiguous. The model proposes, code admits:
+validate() runs each through ZoneInfo, and an invalid key is nulled and
+logged as SYNTHESIS ZONE rather than failing the grouping. Display-only: no
+zone the model writes reaches _distinct_times, derive_conflicts, identity,
+state, or the Reminders path; those compute from stored zones.
 
 Disagreement is code's, not the model's (corrected 2026-09-21; the model has
 never reported it). derive_conflicts compares the members' own stored fields,
@@ -19,7 +28,9 @@ Arrival comes from the member whose end instant is latest, which need not be
 the one the model marked primary (ruled 2026-09-16). The model never emits a
 time, a code, or a flight number, so a hallucinated fact is impossible by
 construction; the trip container name is the one piece of model-authored text
-that reaches the page, and _prompt forbids inventing it.
+that reaches the page, and _prompt forbids inventing it. A render zone is
+model-authored too; once the renderer reads it (build step 2, not yet built)
+it reaches the page only as a key ZoneInfo accepted, never as model text.
 
 Extraction (extract.py, per message) is untouched. State identity
 (gmail message id, array position) is untouched. This stage is display and
@@ -35,7 +46,7 @@ things.
 import json
 import re
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import sys
 import time as _time
 from datetime import date, timedelta
@@ -45,7 +56,7 @@ import anthropic
 from env_loader import load_env_file
 
 MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 2000
+MAX_TOKENS = 4000
 RETRIES = 3
 BACKOFF_SECONDS = (1, 3)
 
@@ -233,12 +244,12 @@ def _prompt(records, today):
     # "if k in r" reproduces the old k != "ref" filter exactly for a record
     # missing a field: absent stays absent, never a null the model must read.
     public = [{k: r[k] for k in PROMPT_FIELDS if k in r} for r in records]
-    return """You are a precise grouping tool for a personal daily digest. You receive the day's records - calendar events and commitments extracted from email - and decide which records describe the SAME real-world obligation. You return structure only. You never restate, correct, or invent any fact.
+    return """You are a precise grouping tool for a personal daily digest. You receive the day's records - calendar events and commitments extracted from email - and decide which records describe the SAME real-world obligation. You return structure only, plus two time-zone fields per group (rule 11). You never restate, correct, or invent any fact.
 
 Today's date is {today}.
 
 Return ONLY a JSON object of exactly this shape. No preamble, no explanation, no markdown code fences. Write nothing before the opening brace.
-{{"groups": [{{"members": ["r1", "r4"], "primary": "r4", "container": {{"name": "Seattle trip", "phase": "depart"}}}}]}}
+{{"groups": [{{"members": ["r1", "r4"], "primary": "r4", "container": {{"name": "Seattle trip", "phase": "depart"}}, "render_zone": "America/Chicago", "end_render_zone": "America/Los_Angeles"}}]}}
 
 Rules, in priority order:
 
@@ -256,6 +267,7 @@ line only if it changes what he would do; steps inside one obligation do not.
 8. WHEN UNCERTAIN, DO NOT MERGE. An unmerged duplicate costs one line; a wrong merge hides an obligation. This does not apply when rule 2 or rule 3 is satisfied - those are decisive, not judgment calls.
 9. "primary": the member whose fields best render the line. For a journey group (rule 3), the member with the EARLIEST departure time. Otherwise prefer a record with a time over an all-day record; prefer the most specific summary. It must be one of the members.
 10. "container": a trip. A trip is one named thing with a departure day and a return day. Give a container ONLY to groups on the trip's departure day (phase "depart") or return day (phase "return"). The name is "<destination> trip", where the destination is a city named in the records themselves. Never invent a name; if no destination is named, use null. Groups with no trip get null. The return day is the day of the flight home, or a hotel check-out, or the last day of a multi-day stay (its end_date). A group on that day that belongs to the same trip gets phase 'return'.
+11. "render_zone" and "end_render_zone": IANA time zone keys (for example "America/Chicago"), never place names. render_zone is the IANA time zone of the place where the group's first event happens - for a flight, the departure airport; for a stay, the property. end_render_zone is the IANA time zone of the place where the group's last event happens - for a flight, the arrival airport. When the group ends where it starts, end_render_zone equals render_zone. Take them only from places the records' own text names - airport codes, cities, addresses, hotel or venue names. Write null when the place named is ambiguous - a city name shared by places in different time zones, with nothing else to decide it; for example, a record saying only "Portland" gets null at both ends. A record's "zone" field is stored data, not a place name, and it can be wrong: never take the answer from it. When the text names no place, write null even if a zone is stored. These two fields never decide grouping, primary, or container.
 
 Records:
 {records}
@@ -303,13 +315,19 @@ def derive_conflicts(members, by_id):
     Ruled 2026-09-04: conflicts are code-derived. The model no longer sees the
     key, is no longer asked for it, and validate() ignores it if an older
     prompt or a stale reply still carries one. Reason: membership, primary and
-    container proved stable across every live run at a fixed prompt, while
-    conflicts moved on all three prompt versions - it was the one field asking
+    container held on every live run at a fixed prompt, while conflicts moved
+    on all three prompt versions - it was the one field asking
     for a judgment ("disagree materially") rather than a structure, which is
     where temperature 0 stops buying determinism. "summary" was the worst of
     it: two records describing one obligation always word it differently, so
     asking whether the difference matters is asking the model to re-litigate
     the merge it just made.
+
+    CORRECTED 2026-09-26: that was one pass per morning, not stability.
+    Replayed three times each over 14 mornings, primary changed on 18 groups
+    at 7130547's prompt and 17 at the zone prompt; membership since the
+    2026-09-13 rewrite matched the recorded grouping 39 of 39. The reason
+    above still holds for conflicts; it does not hold for primary.
 
     Time is the only derived field. A time conflict exists when two or more
     members carry distinct non-null instants (see _distinct_times, ruled
@@ -352,7 +370,31 @@ def filter_time_conflict(conflict, by_id):
     return {"field": "time", "members": timed}
 
 
-def validate(grouping, records):
+ZONE_FIELDS = ("render_zone", "end_render_zone")
+
+
+def _admit_zone(value):
+    """(key, rejected) for one model-proposed render zone.
+
+    Ruled 2026-09-24 (Option D): the model proposes an IANA key, code admits
+    it. A string ZoneInfo resolves is admitted as written. Absent or null is
+    None and not a rejection - null is an answer the rule asks for. Anything
+    else - a place name, a malformed key, a non-string - is None and
+    rejected=True, so the caller logs it. Never raises: a bad zone costs one
+    line its local label, never the morning.
+    """
+    if value is None:
+        return None, False
+    if not isinstance(value, str) or not value.strip():
+        return None, True
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
+        return None, True
+    return value, False
+
+
+def validate(grouping, records, log=True):
     """Raise ValueError on any structural failure; return the normalized
     grouping otherwise. Code owns every check the model could get wrong.
 
@@ -360,7 +402,12 @@ def validate(grouping, records):
     them and a "conflicts" key in its reply is ignored rather than rejected -
     rejecting would fail the whole grouping into the S6 fallback and cost the
     morning over a field the model no longer owns. Each returned group carries
-    derive_conflicts(members) instead."""
+    derive_conflicts(members) instead.
+
+    render_zone and end_render_zone (ruled 2026-09-24, Option D) are admitted
+    through _admit_zone and never raise: an invalid key is nulled and logged
+    as SYNTHESIS ZONE, and the group stands. They are display-only - nothing
+    here reads them, and derive_conflicts still computes from stored zones."""
     by_id = {r["id"]: r for r in records}
     if not isinstance(grouping, dict) or not isinstance(grouping.get("groups"), list):
         raise ValueError("grouping is not an object with a groups list")
@@ -395,6 +442,12 @@ def validate(grouping, records):
                     or container.get("phase") not in ("depart", "return")):
                 raise ValueError(f"group {i} container malformed: {container!r}")
             container = {"name": container["name"].strip(), "phase": container["phase"]}
+        zones = {}
+        for field in ZONE_FIELDS:
+            zones[field], rejected = _admit_zone(g.get(field))
+            if rejected:
+                _log("ZONE", {"group": i, "field": field,
+                              "value": _snippet(g.get(field), 60)}, log)
         # A model-emitted "conflicts" key is IGNORED, never rejected (ruled
         # 2026-09-04): an older prompt's habit must not cost the morning by
         # failing validation into the S6 fallback. Conflicts are derived below.
@@ -403,6 +456,7 @@ def validate(grouping, records):
             "primary": primary,
             "container": container,
             "conflicts": derive_conflicts(members, by_id),
+            **zones,
         })
     # Canonical group order (ruled 2026-09-04): by lowest member id, so
     # stability is order-insensitive from here. The model returned the same
@@ -447,7 +501,12 @@ def _last_json_object(text):
 
 
 def _call_model(prompt, log=True):
-    """One synthesis call. Temperature 0.
+    """One synthesis call. Temperature 0. Returns (text, stop_reason).
+
+    stop_reason rides out so a fallback line can say whether the reply was
+    cut at MAX_TOKENS (ruled 2026-09-26: 2 of 9 replays of 09-05 stopped at
+    max_tokens with the JSON cut mid-group, and fell back; MAX_TOKENS 2000 ->
+    4000 the same day).
 
     THE REPLY CONTRACT (ruled 2026-09-04): reasoning is permitted first, and
     the JSON object comes last. The parser takes the last complete top-level
@@ -497,7 +556,7 @@ def _call_model(prompt, log=True):
         if start > 0:
             _log("PREAMBLE", {"chars": start}, log)
         raw_output = raw_output[start:end]
-    return raw_output
+    return raw_output, response.stop_reason
 
 
 def synthesize(records, today, log=True):
@@ -513,10 +572,11 @@ def synthesize(records, today, log=True):
         return {"groups": []}, None
     prompt = _prompt(records, today)
     raw = None
+    stop_reason = None
     last_error = None
     for attempt in range(RETRIES):
         try:
-            raw = _call_model(prompt, log)
+            raw, stop_reason = _call_model(prompt, log)
             break
         except Exception as error:
             last_error = error
@@ -524,18 +584,21 @@ def synthesize(records, today, log=True):
             if attempt < RETRIES - 1:
                 _time.sleep(BACKOFF_SECONDS[min(attempt, len(BACKOFF_SECONDS) - 1)])
     if raw is None:
-        _log("FALLBACK", {"cause": "network", "error": str(last_error)}, log)
+        _log("FALLBACK", {"cause": "network", "error": str(last_error),
+                          "stop_reason": stop_reason}, log)
         return None, "network"
     _log("RAW", {"text": raw}, log)
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        _log("FALLBACK", {"cause": "validation", "error": "not valid JSON"}, log)
+        _log("FALLBACK", {"cause": "validation", "error": "not valid JSON",
+                          "stop_reason": stop_reason}, log)
         return None, "validation"
     try:
-        grouping = validate(parsed, records)
+        grouping = validate(parsed, records, log)
     except ValueError as error:
-        _log("FALLBACK", {"cause": "validation", "error": str(error)}, log)
+        _log("FALLBACK", {"cause": "validation", "error": str(error),
+                          "stop_reason": stop_reason}, log)
         return None, "validation"
     _log("RESULT", grouping, log)
     return grouping, None

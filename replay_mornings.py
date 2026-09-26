@@ -5,6 +5,20 @@ Reads digest.out, re-runs synthesize() on each morning's recorded records,
 and reports membership as ref-sets so groupings are comparable across days.
 One API call per morning. Touches no state, writes no files.
 
+Extended 2026-09-25 for zone-of-render (Option D, ruled 2026-09-24). Two
+additions; everything above is unchanged, including the header line and the
+NEW/GONE lines:
+  PRIMARY - for each group whose membership matches the recorded RESULT, a
+    line when the primary differs, and a count on its own line.
+  G lines - every new group in canonical order (validate's, by lowest member
+    id): member ids, primary, render_zone -> end_render_zone. Per-run ids
+    only, no record text, so the lines of two passes can be diffed as they
+    stand; byte-identical G lines across passes is the stability test.
+SYNTHESIS ZONE lines (a key validate() nulled) are passed through from the
+otherwise swallowed log.
+SYNTHESIS FALLBACK lines are passed through the same way (2026-09-26): the
+error text is what attributes a fallback, and the cause alone does not.
+
 Usage: python3 replay_mornings.py 2026-09-11 2026-09-12 2026-09-13
 """
 import contextlib, io, json, os, socket, subprocess, sys, datetime
@@ -47,6 +61,12 @@ def load(dates):
     return out
 
 
+def byrec(members):
+    """Member ids in record order (r2 before r10), so a G line is a set, not
+    the order the model happened to list members in."""
+    return sorted(members, key=lambda m: int(m[1:]) if m[1:].isdigit() else 0)
+
+
 def refsets(groups, by_id):
     sets = []
     for g in groups or []:
@@ -69,11 +89,19 @@ def main():
         recs = entry["INPUT"]["records"]
         today = datetime.date.fromisoformat(entry["INPUT"]["today"])
         by_id = {r["id"]: tuple(r["ref"]) for r in recs}
-        old = refsets((entry.get("RESULT") or {}).get("groups"), by_id)
-        with contextlib.redirect_stdout(io.StringIO()):
+        old_groups = (entry.get("RESULT") or {}).get("groups")
+        old = refsets(old_groups, by_id)
+        swallowed = io.StringIO()
+        with contextlib.redirect_stdout(swallowed):
             groups, cause = synthesize(recs, today)
+        zone_lines = [l for l in swallowed.getvalue().splitlines()
+                      if l.startswith("SYNTHESIS ZONE ")]
+        fallback_lines = [l for l in swallowed.getvalue().splitlines()
+                          if l.startswith("SYNTHESIS FALLBACK ")]
         if groups is None:
             print("%s  FALLBACK cause=%s" % (d, cause))
+            for line in zone_lines + fallback_lines:
+                print("  " + line)
             continue
         new = refsets(groups["groups"], by_id)
         same = old == new
@@ -87,6 +115,22 @@ def main():
             for s in old:
                 if s not in new:
                     print("  GONE  %d members: %s" % (len(s), " | ".join(s)))
+        old_primary = {tuple(sorted(g.get("members", []))): g.get("primary")
+                       for g in old_groups or []}
+        changed = 0
+        for g in groups["groups"]:
+            key = tuple(sorted(g["members"]))
+            if key in old_primary and old_primary[key] != g["primary"]:
+                changed += 1
+                print("  PRIMARY %s: recorded %s  new %s"
+                      % (byrec(g["members"])[0], old_primary[key], g["primary"]))
+        print("  primary vs recorded: %s" % ("SAME" if not changed else "CHANGED %d" % changed))
+        for g in groups["groups"]:
+            print("  G %s primary=%s zones=%s -> %s"
+                  % (",".join(byrec(g["members"])), g["primary"],
+                     g.get("render_zone"), g.get("end_render_zone")))
+        for line in zone_lines:
+            print("  " + line)
 
 
 main()
