@@ -1,5 +1,5 @@
 {
- "about": "Zone-of-render fixtures, Option D (ruled 2026-09-24). Self-authored; expected zones written 2026-09-25 before any synthesis call. Records are in the SYNTHESIS INPUT shape and go to synthesize() as one morning. Flight numbers and codes are fake. Only membership, render_zone and end_render_zone are asserted; container and primary are not.",
+ "about": "Zone-of-render fixtures, Option D (ruled 2026-09-24). Self-authored; expected zones written 2026-09-25 before any synthesis call. Records are in the SYNTHESIS INPUT shape and go to synthesize() as one morning. Flight numbers and codes are fake. Only membership, render_zone and end_render_zone are asserted; container and primary are not. Cases f1 and f2 (r24's twin and its non-home twin) added 2026-09-27 for fix shape (B), expected zones written from airports.py before any call.",
  "today": "2026-10-05",
  "records": [
   {"id": "r1", "ref": ["fixture", "a_parser"], "kind": "event", "source": "calendar", "date": "2026-10-06", "time": "14:24", "zone": "America/New_York", "end_time": "17:13", "end_zone": "America/New_York", "end_date": null, "summary": "Flight to Dallas/Fort Worth (AA 9001)", "location": "Tampa TPA", "identifiers": ["FLIGHT 9001"]},
@@ -9,18 +9,24 @@
   {"id": "r5", "ref": ["fixture", "b_gmail_flight"], "kind": "appointment", "source": "gmail", "date": "2026-10-07", "time": "08:10", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Delta flight 4411 ATL to DEN", "location": "", "identifiers": ["FLIGHT 4411"]},
   {"id": "r6", "ref": ["fixture", "c_hotel"], "kind": "appointment", "source": "gmail", "date": "2026-10-08", "time": "15:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Hotel check-in at Fixture Suites Downtown Chicago", "location": "", "identifiers": []},
   {"id": "r7", "ref": ["fixture", "d_portland"], "kind": "appointment", "source": "gmail", "date": "2026-10-09", "time": "19:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Dinner reservation in Portland", "location": "", "identifiers": []},
-  {"id": "r8", "ref": ["fixture", "e_noplace"], "kind": "event", "source": "calendar", "date": "2026-10-10", "time": "09:30", "zone": "America/New_York", "end_time": "10:30", "end_zone": "America/New_York", "end_date": null, "summary": "Dentist appointment", "location": "", "identifiers": []}
+  {"id": "r8", "ref": ["fixture", "e_noplace"], "kind": "event", "source": "calendar", "date": "2026-10-10", "time": "09:30", "zone": "America/New_York", "end_time": "10:30", "end_zone": "America/New_York", "end_date": null, "summary": "Dentist appointment", "location": "", "identifiers": []},
+  {"id": "r9", "ref": ["fixture", "f1_r24_twin"], "kind": "appointment", "source": "gmail", "date": "2026-10-11", "time": "14:24", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Departing flight TPA to DFW (AA 9101)", "location": "", "identifiers": ["FLIGHT 9101", "FXF1ONE"]},
+  {"id": "r10", "ref": ["fixture", "f2_nonhome_twin"], "kind": "appointment", "source": "gmail", "date": "2026-10-12", "time": "08:05", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Departing flight LAX to DFW (AA 9201)", "location": "", "identifiers": ["FLIGHT 9201", "FXF2TWO"]}
  ],
  "expected": [
   {"case": "a", "members": ["r1", "r2", "r3", "r4"], "render_zone": "America/New_York", "end_render_zone": "America/Chicago",
    "why": "Twin of the 2026-09-18 AA flight group (r6/r7/r14/r19). r1 is the parser twin: stored New York at both ends, arrival 17:13 NY, the wrong zone for a DFW landing. The records name TPA/Tampa and DFW/Dallas/Fort Worth, so the text gives Tampa at the start and Dallas at the end. end_zone is withheld from the model, so Chicago must come from the text, not from r2's stored end."},
   {"case": "b", "members": ["r5"], "render_zone": "America/New_York", "end_render_zone": "America/Denver",
-   "why": "Gmail only, stored zone null, airport codes and no city names: ATL is Atlanta (Eastern), DEN is Denver (Mountain). Checks that the model infers from codes."},
+   "why": "Gmail only, stored zone null, airport codes and no city names: ATL is Atlanta (Eastern), DEN is Denver (Mountain). Checks that the model infers from codes. Since 2026-09-27 codes_only matches r5, so both zones come from airports.py (fix shape (B)); this case now checks the override, not the model's inference."},
   {"case": "c", "members": ["r6"], "render_zone": "America/Chicago", "end_render_zone": "America/Chicago",
    "why": "Hotel naming a city (Chicago), no airport code, no confirmation code. The group ends where it starts, so end_render_zone equals render_zone (Finding 7 ruling, 2026-09-25)."},
   {"case": "d", "members": ["r7"], "render_zone": null, "end_render_zone": null,
    "why": "Portland alone: Oregon (America/Los_Angeles) or Maine (America/New_York). Nothing else in the record picks one, so the place is ambiguous and both keys are null."},
   {"case": "e", "members": ["r8"], "render_zone": null, "end_render_zone": null,
-   "why": "Names no place. Deliberately a calendar record carrying a stored America/New_York zone: the stored zone is not text naming a place, so the model must write null rather than copy it. The null falls back to the stored zone at render, so the page is the same either way; this checks the rule, not the page."}
+   "why": "Names no place. Deliberately a calendar record carrying a stored America/New_York zone: the stored zone is not text naming a place, so the model must write null rather than copy it. The null falls back to the stored zone at render, so the page is the same either way; this checks the rule, not the page."},
+  {"case": "f1", "members": ["r9"], "render_zone": "America/New_York", "end_render_zone": "America/Chicago",
+   "why": "Added 2026-09-27, written before any call: the live twin of 09-11 r24 (gmail appointment, 'Departing flight TPA to DFW', empty location, null zones, a flight number and a confirmation code). r24's start zone drew New York or null from the model on an unchanged request. codes_only matches it, so both zones come from airports.py (TPA, DFW) and are deterministic by construction. Its own date, so rule 2 cannot merge it into case (a)."},
+  {"case": "f2", "members": ["r10"], "render_zone": "America/Los_Angeles", "end_render_zone": "America/Chicago",
+   "why": "Added 2026-09-27, written before any call: f1's shape with a non-home origin (LAX). TPA is HOME_TZ, so r24's null was page-invariant; a null or wrong start here would show on the page once path (a) renders it. Both zones from airports.py (LAX, DFW); this is the fixture that proves the override, not the prompt."}
  ]
 }

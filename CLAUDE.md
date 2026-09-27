@@ -95,3 +95,28 @@ Showcase-grade: the repo should be presentable to potential employers. The reaso
 - **Measured:** old prompt (`7130547`) ceiling 1595/2000 output tokens over 42 calls (14 mornings × 3), zero fallbacks. Current prompt ceiling 2140 on 09-12, over 66 calls at 4000 (22 mornings × 3) — 09-12 also reached 2005, so two of 66 would have truncated at the old limit. Fixtures 5/5 on three byte-identical passes at 4000. Corpus at 4000: 0 fallbacks, membership 39/39 against the recorded RESULT for 09-13 through 09-25, zones identical across passes on 21 of 22 mornings.
 - **Primary drift is pre-existing (rule-9 tightening, its own backlog item).** Same 14 mornings, three passes: old prompt 12 mornings / 18 groups flipped primary; current prompt at 2000, 11 / 17 (fallback passes excluded). At 4000 over all 22 mornings: 9 / 13.
 - **Known rule-11 defect, verbatim from the ruling:** The 09-11 r24 start-zone wobble (New York 4 / null 4 across nine calls, a gmail-only codes-only flight, fixture case (b)'s live twin) is recorded as a known rule-11 defect, page-invariant on this record only because TPA is HOME_TZ, and it gates path (a): no renderer line is written until r24 is attributed against case (b), fixture (f) exists (TPA shape plus a non-home twin), and rule 11 passes all fixtures and the 22-morning corpus 66/66 with zones identical.
+
+### Ruled 2026-09-26 (second session) — r24 fix is shape (B); 9/24 ruling amended
+
+Ruled (Nick, 2026-09-26, on Claude's recommendation): r24's fix is a code-side IATA → IANA
+table (`airports.py`) applied as a post-parse override, replacing the zone field on any
+endpoint named only by an airport code, null or not. The override runs after parse and
+before `validate()` (ruled 2026-09-27), so a table zone passes the same `ZoneInfo`
+admission as a model zone. Discriminator for "codes only" is
+exact (byte comparison), ruled at build time against the actual record fields. A
+`SYNTHESIS ZONE` tripwire fires on any code not in the table.
+
+Amendment: this amends the 2026-09-24 ruling that zone-of-render is decided on the
+synthesis side. Synthesis still decides every endpoint except codes; codes are a table.
+
+Fix (A) — a forced per-group basis field in the reply schema — is parked behind a trigger
+(the first live or replayed non-code endpoint whose zone wobbles across passes), not built.
+
+Rule-11 tightening is void: three input variables (snippet, code choice, group size) were
+each varied against the 09-11 morning; none moved the null. No prompt change.
+
+MAX_TOKENS stays 4000. A long-mode reply hitting the cap is an accepted wart with
+`stop_reason` on the `SYNTHESIS FALLBACK` line as the tripwire; its content is unobserved.
+
+Gate unchanged: path (a) waits on this build — fixtures 7/7 on three byte-identical passes
+(f1 TPA → DFW, f2 LAX → DFW added), corpus 66/66 zones identical, 0 short-mode fallbacks.

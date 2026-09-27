@@ -3,11 +3,17 @@
 
 Written 2026-09-25 for Option D (ruled 2026-09-24): synthesis proposes a
 render_zone and end_render_zone per group, code admits them through ZoneInfo.
-fixtures/zone_fixtures.json holds five self-authored cases, their records in
+fixtures/zone_fixtures.json holds seven self-authored cases, their records in
 the SYNTHESIS INPUT shape, and the expected membership and zones - all written
-down before the first call was ever made.
+down before the first call was ever made. Cases f1 and f2 were added
+2026-09-27 for fix shape (B): r24's twin and a non-home twin, whose zones come
+from airports.py by construction.
 
-Every pass is ONE API call over all five cases as one morning. Without --live
+Every pass first runs airports.self_check() (ruled 2026-09-27): a table zone
+ZoneInfo cannot resolve fails the pass, and no API call is made for it. The
+result line naming the check is part of what must be byte-identical.
+
+Every pass is ONE API call over all seven cases as one morning. Without --live
 this prints usage and exits: nothing here runs by accident, and
 preview_digest.py's default path stays $0 and network-free. Touches no state,
 no Reminders, no log file; writes nothing.
@@ -32,6 +38,7 @@ import sys
 REPO = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, REPO)
 
+from airports import AIRPORT_ZONES, self_check                  # noqa: E402
 from synthesize import synthesize                               # noqa: E402
 
 FIXTURE = os.path.join(REPO, "fixtures", "zone_fixtures.json")
@@ -57,6 +64,10 @@ def one_pass(fixture):
     The SYNTHESIS lines go to a buffer, not the terminal; only ZONE and
     FALLBACK are kept, because those are what this instrument is about.
     """
+    bad = self_check()
+    if bad:
+        return [f"airports self_check FAIL - unresolvable: {bad}"], [], False
+    check_line = f"airports self_check ok ({len(AIRPORT_ZONES)} entries)"
     today = datetime.date.fromisoformat(fixture["today"])
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -64,9 +75,9 @@ def one_pass(fixture):
     logs = [line for line in buf.getvalue().splitlines()
             if line.startswith(("SYNTHESIS ZONE", "SYNTHESIS FALLBACK"))]
     if grouping is None:
-        return [f"FALLBACK cause={cause}"], logs, False
+        return [check_line, f"FALLBACK cause={cause}"], logs, False
     by_members = {tuple(sorted(g["members"])): g for g in grouping["groups"]}
-    lines, all_ok = [], True
+    lines, all_ok = [check_line], True
     for exp in fixture["expected"]:
         got = by_members.get(tuple(sorted(exp["members"])))
         if got is None:

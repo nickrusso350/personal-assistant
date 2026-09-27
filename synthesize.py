@@ -16,6 +16,13 @@ logged as SYNTHESIS ZONE rather than failing the grouping. Display-only: no
 zone the model writes reaches _distinct_times, derive_conflicts, identity,
 state, or the Reminders path; those compute from stored zones.
 
+Amended 2026-09-26 (fix shape (B), r24): an endpoint the records name only
+by an airport code takes its zone from airports.py, not from the model. The
+override runs after the reply parses and before validate() (ruled
+2026-09-27), so a table zone passes the same ZoneInfo admission as a model
+zone. The prompt is unchanged; the model still answers for codes, and the
+RAW line keeps its answer, so RAW against RESULT shows every override.
+
 Disagreement is code's, not the model's (corrected 2026-09-21; the model has
 never reported it). derive_conflicts compares the members' own stored fields,
 and _distinct_times compares instants rather than clock strings (ruled
@@ -53,6 +60,7 @@ from datetime import date, timedelta
 
 import anthropic
 
+from airports import lookup as airport_zone
 from env_loader import load_env_file
 
 MODEL = "claude-sonnet-4-6"
@@ -394,6 +402,90 @@ def _admit_zone(value):
     return value, False
 
 
+def _is_code(token):
+    """Exactly three characters, every one A-Z. Nothing else is a code."""
+    return len(token) == 3 and all("A" <= c <= "Z" for c in token)
+
+
+def codes_only(record):
+    """(origin, destination) when a record names its endpoints only by
+    airport codes, else None. Ruled 2026-09-27, against the recorded fields.
+
+    Exact tests, no scoring and no pattern that could widen (the fuzzy-
+    matching ban): kind is event or appointment; location is exactly "";
+    and the summary, split on single spaces, holds exactly one run of three
+    tokens CODE "to" CODE, each code three A-Z characters. Reads kind,
+    location, and summary only - all three are on the SYNTHESIS INPUT line,
+    so a replay decides exactly as the live run did. description_snippet is
+    not read: it left the log on 2026-09-21, and reading it would make a
+    replay decide differently from the morning it replays.
+
+    Not matched: a code in parentheses beside a city ("Tampa (TPA) to
+    Dallas/Fort Worth (DFW)" - the token is "(TPA)"), any non-empty
+    location, "TPA-DFW" or "TPA -> DFW", lower-case codes, two runs in one
+    summary, and todo or attention records.
+
+    Known gap, accepted 2026-09-27: "Tampa TPA to DFW" matches, because
+    telling that "Tampa" names a city takes a list of cities. None is in the
+    corpus; if one arrives, the table and the city agree unless the record
+    contradicts itself. "via ATL" is not a run, so a connecting itinerary
+    yields its two ends, which is what the endpoints are.
+    """
+    if record.get("kind") not in HAPPEN_KINDS:
+        return None
+    if record.get("location") != "":
+        return None
+    summary = record.get("summary")
+    if not isinstance(summary, str):
+        return None
+    tokens = summary.split(" ")
+    runs = [(tokens[i - 1], tokens[i + 1]) for i in range(1, len(tokens) - 1)
+            if tokens[i] == "to" and _is_code(tokens[i - 1])
+            and _is_code(tokens[i + 1])]
+    return runs[0] if len(runs) == 1 else None
+
+
+def _override_codes(parsed, records, log=True):
+    """Replace the model's zones on groups named only by airport codes.
+    Mutates parsed in place. Never raises.
+
+    Ruled 2026-09-26 (fix shape (B)); placement ruled 2026-09-27: after
+    parse, before validate(). A group qualifies only when EVERY member is
+    codes_only and all members give the same (origin, destination) - one
+    member naming the place in words leaves the group to the model (group
+    rule ruled 2026-09-27; "any member matches" was declined as wider than
+    "named only by a code"). Each end is then decided on its own: a code in
+    airports.py replaces render_zone or end_render_zone, null or not; a code
+    the table lacks logs SYNTHESIS ZONE naming it, and the model's value
+    stands - the table can be incomplete without being silent.
+
+    Structural checks here are only enough to not crash. A malformed reply
+    is left exactly as it came, for validate() to reject with its own error.
+    """
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("groups"), list):
+        return
+    by_id = {r["id"]: r for r in records}
+    for g in parsed["groups"]:
+        if not isinstance(g, dict):
+            continue
+        members = g.get("members")
+        if not isinstance(members, list) or not members:
+            continue
+        if not all(isinstance(m, str) and m in by_id for m in members):
+            continue
+        pairs = {codes_only(by_id[m]) for m in members}
+        if len(pairs) != 1 or None in pairs:
+            continue
+        (pair,) = pairs
+        for field, code in zip(ZONE_FIELDS, pair):
+            zone = airport_zone(code)
+            if zone is None:
+                _log("ZONE", {"unknown_code": code, "field": field,
+                              "members": members}, log)
+            else:
+                g[field] = zone
+
+
 def validate(grouping, records, log=True):
     """Raise ValueError on any structural failure; return the normalized
     grouping otherwise. Code owns every check the model could get wrong.
@@ -594,6 +686,7 @@ def synthesize(records, today, log=True):
         _log("FALLBACK", {"cause": "validation", "error": "not valid JSON",
                           "stop_reason": stop_reason}, log)
         return None, "validation"
+    _override_codes(parsed, records, log)
     try:
         grouping = validate(parsed, records, log)
     except ValueError as error:
