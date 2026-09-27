@@ -5,7 +5,7 @@ from fetch_calendar import fetch_upcoming_events, DEFAULT_TZ as HOME_TZ
 from extract import extract_commitments
 from reminders_write import reconcile, write_back
 from synthesize import build_records, filter_time_conflict, synthesize
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from state import load_state, save_state, STATE_FILE
 
 QUERY = "newer_than:2d"
@@ -147,13 +147,19 @@ def _index_grouping(grouping):
     return ref_to_group, by_rid
 
 
-def _fold(items, ref_of, ref_to_group, by_rid):
+def _fold(items, ref_of, ref_to_group, by_rid, display_primary=None):
     """Return [(item, group_or_None)] with non-primary members dropped.
 
     Each group renders once, from its primary. Groups never cross sections
     (validate() holds every group to one date and one kind-family), so the
     primary is always among items; if it ever is not, the first member seen
-    stands in rather than the whole group vanishing."""
+    stands in rather than the whole group vanishing.
+
+    display_primary, when given, maps id(group) to the ref of the member that
+    renders the line in place of the model's primary - the zoned-member
+    tiebreak (see _zoned_tiebreak). It changes which item is kept, never the
+    group: group["primary"] is not written, so the recorded grouping, write_back
+    and every other reader see exactly what synthesis returned."""
     if ref_to_group is None:
         return [(it, None) for it in items]
     present = {ref_of(it) for it in items}
@@ -167,7 +173,8 @@ def _fold(items, ref_of, ref_to_group, by_rid):
             continue
         if id(g) in shown:
             continue
-        primary_ref = tuple(by_rid[g["primary"]]["ref"])
+        primary_ref = ((display_primary or {}).get(id(g))
+                       or tuple(by_rid[g["primary"]]["ref"]))
         if ref != primary_ref and primary_ref in present:
             continue
         shown.add(id(g))
@@ -334,17 +341,26 @@ def merge_coming_up(events, appointment_commitments, today):
     in-progress line.
 
     sort_key's first element is always a date, never a datetime — comparing the
-    two raises TypeError, and all-day events already carry plain dates."""
+    two raises TypeError, and all-day events already carry plain dates.
+
+    Source data rides on the item (ruled 2026-09-27, seam choice (i)) so the
+    render-zone seam in render_coming_up can rebuild a label without reading
+    a record: a timed calendar event carries its zoned "start" and "end" as
+    fetched; a gmail appointment carries its bare "clock" (a time, no zone)
+    when the stored time parses. All-day items carry neither. Today's frame
+    throughout - these are the fetched values, never a recorded record's.
+    Nothing but the renderer reads them."""
     horizon = today + timedelta(days=HORIZON_DAYS)
     merged = []
 
-    def add(d, start_time, ref, time_label, summary):
+    def add(d, start_time, ref, time_label, summary, **source):
         merged.append({
             "sort_key": (d, start_time),
             "ref": ref,
             "date": d,
             "time_label": time_label,
             "summary": summary,
+            **source,
         })
 
     for e in events:
@@ -365,16 +381,20 @@ def merge_coming_up(events, appointment_commitments, today):
             d = e["start_local"].date()
             start_time = e["start_local"].time()
             add(d, start_time, ("event", e["id"], "single"),
-                _time_label(e["start_local"], e["end_local"]), e["summary"])
+                _time_label(e["start_local"], e["end_local"]), e["summary"],
+                start=e["start_local"], end=e["end_local"])
     for c in appointment_commitments:
         d = parse_iso_date(c["date"])
         pretty = format_time(c.get("time"))
+        clock = None
         try:
             start_time = datetime.strptime(c.get("time"), "%H:%M").time()
+            clock = start_time
         except (TypeError, ValueError):
             # Unparseable or absent: sort it to the head of its day.
             start_time = time.min
-        add(d, start_time, ("commitment", c["id"]), pretty, c["what"])
+        add(d, start_time, ("commitment", c["id"]), pretty, c["what"],
+            clock=clock)
     merged.sort(key=lambda m: m["sort_key"])
     return merged
 
@@ -450,12 +470,149 @@ def collapse_display(merged):
 
 def _visible_timeline(merged, grouping):
     """The timeline as it will render: [(item, group_or_None)]. With a
-    grouping, members fold into primaries; without one (fallback), the 9/2
-    exact-anchor collapse_display path stands in."""
+    grouping, members fold into primaries - the zoned-member tiebreak applied
+    - and without one (fallback), the 9/2 exact-anchor collapse_display path
+    stands in, untouched by the tiebreak (ruled 2026-09-27, Q2)."""
     ref_to_group, by_rid = _index_grouping(grouping)
     if ref_to_group is None:
         return [(it, None) for it in collapse_display(merged)], None
-    return _fold(merged, lambda it: it["ref"], ref_to_group, by_rid), by_rid
+    return _fold(merged, lambda it: it["ref"], ref_to_group, by_rid,
+                 _zoned_tiebreak(merged, ref_to_group, by_rid)), by_rid
+
+
+def _has_zoned_start(item):
+    """True when the item carries a start with an IANA zone key - a timed
+    calendar event, as merge_coming_up built it. A gmail clock, an all-day
+    item, or a naive start is False. Presence of the key, nothing inferred."""
+    start = item.get("start")
+    return start is not None and getattr(start.tzinfo, "key", None) is not None
+
+
+def _zoned_tiebreak(items, ref_to_group, by_rid):
+    """{id(group): ref} for groups whose line a zoned member should render.
+
+    Tiebreak (b), ruled 2026-09-22, scoped 2026-09-27: inside synthesized
+    groups only, when the model's primary is unzoned, exactly one member
+    carries a zoned start, AND that start is the same instant as the
+    primary's clock, that member renders the line. A gmail primary prints a
+    bare clock that implicitly claims the home zone; a calendar member of the
+    same obligation at the same time knows its instant. Exactly one, so the
+    choice is never a judgment between two zoned members.
+
+    Same instant (ruled 2026-09-27): the zoned start, converted into the
+    group's render_zone when that key admits (else left in its stored zone),
+    has a clock equal to the primary's clock, compared as time values. A
+    primary with no clock - untimed, unparseable, or all-day - never swaps.
+    Without this, a calendar member at a different time would replace the
+    primary's time on the page, which is a conflict the page reports, not
+    one the renderer settles.
+
+    Skipped: journeys (their Departure and Arrival read group["primary"] and
+    stay untouched), a primary absent from items (the _fold stand-in case -
+    whether it is zoned is unknown), and the fallback path, where there are
+    no groups (collapse_display's survivor rule is unchanged; the zoned-
+    survivor question is its own backlog line).
+
+    Display-only: returns refs for _fold to keep, and writes nothing -
+    group["primary"] is unchanged for write_back, the log, and identity.
+    """
+    by_ref = {it["ref"]: it for it in items}
+    out, seen = {}, set()
+    for g in ref_to_group.values():
+        if id(g) in seen:
+            continue
+        seen.add(id(g))
+        if _is_journey(g, by_rid):
+            continue
+        primary_item = by_ref.get(tuple(by_rid[g["primary"]]["ref"]))
+        if primary_item is None or _has_zoned_start(primary_item):
+            continue
+        clock = primary_item.get("clock")
+        if clock is None:
+            continue
+        zoned = [ref for ref in (tuple(by_rid[m]["ref"]) for m in g["members"])
+                 if ref in by_ref and _has_zoned_start(by_ref[ref])]
+        if len(zoned) != 1:
+            continue
+        start = by_ref[zoned[0]]["start"]
+        zone = _admitted_zone(g.get("render_zone"))
+        if zone is not None:
+            start = start.astimezone(zone)
+        if start.time() == clock:
+            out[id(g)] = zoned[0]
+    return out
+
+
+def _admitted_zone(key):
+    """ZoneInfo for a render-zone key, or None when it is absent or does not
+    resolve. validate() already nulls and logs (SYNTHESIS ZONE) every key
+    ZoneInfo rejects on the production path, so a bad key reaching here came
+    from a grouping built elsewhere - a hand-authored fixture - and falls back
+    silently, as filter_time_conflict defends the same kind of grouping."""
+    if not key:
+        return None
+    try:
+        return ZoneInfo(key)
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
+        return None
+
+
+def _render_zone_label(item, group):
+    """The item's time label rebuilt in the group's render zones, or None to
+    keep the label as built (ruled 2026-09-27, label vs convert).
+
+    The discriminator is what the item carries, not where it came from:
+      zoned start -> CONVERT. The instant is right; only the display zone
+        changes. start moves into render_zone, end into end_render_zone.
+        All or nothing (ruled 2026-09-27): an item with an end converts only
+        when BOTH keys admit; if end_render_zone is null or does not resolve,
+        the whole label stays as built. A half-converted range would mix a
+        model zone and a stored zone on one line.
+      bare clock -> LABEL. The stored clock is the venue's wall clock; it is
+        rendered unchanged in render_zone. end_render_zone is unused - a
+        gmail appointment carries no end.
+      neither (all-day, unparseable time) -> None.
+    Both branches go through _time_label unchanged: home bare, non-home
+    labeled, cross-zone ranges label both ends (Q1). A convert keeps the
+    item's date and sort key even across local midnight (Q3, accepted wart).
+    """
+    zone = _admitted_zone(group.get("render_zone"))
+    if zone is None:
+        # Fallback: the label as built, no mark. No renderer-side tripwire
+        # (ruled 2026-09-27): on the scheduled path validate() has already
+        # nulled and logged (SYNTHESIS ZONE) every key ZoneInfo rejects, so an
+        # unresolvable key only reaches here from a grouping that bypassed
+        # validate() - a hand-authored fixture. A log line here would make the
+        # renderer print unconditionally (a library must not) and put a second
+        # writer on the ZONE line that synth_dump.py reads.
+        return None
+    start = item.get("start")
+    if start is not None:
+        if not _has_zoned_start(item):
+            return None
+        end = item.get("end")
+        if end is not None:
+            end_zone = _admitted_zone(group.get("end_render_zone"))
+            if end_zone is None:
+                return None
+            end = end.astimezone(end_zone)
+        return _time_label(start.astimezone(zone), end)
+    clock = item.get("clock")
+    if clock is not None:
+        return _time_label(datetime.combine(item["date"], clock, tzinfo=zone))
+    return None
+
+
+def _with_render_zone(item, group, by_rid):
+    """The item to render: a copy with its label rebuilt in the group's
+    render zones, or the item unchanged. The seam's condition (ruled
+    2026-09-27): a group exists, it is not a journey, and render_zone is
+    non-null. .get throughout, so a grouping recorded before zones existed
+    renders byte-identically. Display-only: merged items are not mutated."""
+    if group is None or _is_journey(group, by_rid) or not group.get("render_zone"):
+        return item
+    label = _render_zone_label(item, group)
+    return item if label is None else {**item, "time_label": label}
 
 
 def _is_journey(group, by_rid):
@@ -620,7 +777,9 @@ def render_coming_up(merged, grouping=None):
             else:
                 expanded.append((it, g))
         expanded.sort(key=lambda pair: pair[0]["sort_key"])
-        visible = expanded
+        # The render-zone seam (ruled 2026-09-27): after journey expansion,
+        # before any line is formatted. Relabels only; sort order stands.
+        visible = [(_with_render_zone(it, g, by_rid), g) for it, g in expanded]
     lines = ["COMING UP"]
     if by_rid is None:
         cause = (grouping or {}).get("cause")

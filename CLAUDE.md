@@ -120,3 +120,35 @@ MAX_TOKENS stays 4000. A long-mode reply hitting the cap is an accepted wart wit
 
 Gate unchanged: path (a) waits on this build — fixtures 7/7 on three byte-identical passes
 (f1 TPA → DFW, f2 LAX → DFW added), corpus 66/66 zones identical, 0 short-mode fallbacks.
+
+### Ruled 2026-09-27 (second session) — label vs convert on path (a)
+
+Applies to the path (a) line: a merged primary rendered in the group's `render_zone` / `end_render_zone`.
+
+- **Discriminator is stored-zone presence, byte-level:** `stored zone is None` vs not. No scoring, no inference from summary text.
+- **Zone-less record (gmail-only, no zone captured) → label.** The stored clock is the venue's wall-clock; render it unchanged and attach the render zone's abbreviation (`18:30` + `America/Los_Angeles` → `6:30 PM PDT`). Converting would assert the clock meant `HOME_TZ` and invent a full-offset error.
+- **Zoned record (Calendar, or gmail with a captured zone) → convert.** The instant is correct; shift it into the render zone. Only the display zone changes. Each endpoint converts into its own render zone (AA 3112: `2:24 PM EDT – 4:13 PM CDT`).
+- **Fallback unchanged (9/24 sub-ruling):** null or invalid render zone → today's stored-zone render, no mark.
+- **Display-only:** nothing into `_distinct_times`, `derive_conflicts`, identity, state, or Reminders.
+- **Accepted wart:** a zone-less clock written in the sender's home zone rather than the venue's is labeled wrongly. Unrecoverable from the data; label-only fails it identically; no heuristic added.
+- Decides f2's expected line: r10 stores `08:05`, stored zone null, render zone `America/Los_Angeles` → `8:05 AM PDT` (the `18:30` above is illustration only, not the fixture). Splits the step-3 fixture expectations into the two branches.
+
+### Ruled 2026-09-27 (second session) — seam-report rulings for the path (a) build
+
+Rulings on the four questions and one choice the step-2 seam report surfaced. Build scope for step 3 is exactly this.
+
+- **Data carry is (i):** `merge_coming_up` puts source data on the merged item — zoned `start`/`end` for calendar events, bare `clock` for gmail appointments. Today's frame throughout. Rebuilding from the primary record (ii) is rejected: it reads a recorded frame and gets the stand-in case wrong (item and `group["primary"]` differ when the primary is absent from items).
+- **Seam:** inside `render_coming_up`, after journey expansion and before the line is formatted; applies to pairs where the group exists, is not a journey, and `g.get("render_zone")` is non-null. Otherwise the label stays as built (9/24 fallback). `.get` throughout so `preview_digest.py`'s pre-zone fixture stays byte-identical.
+- **Q1 — home zone stays bare.** Both branches use `_time_label`'s existing convention: home bare, non-home labeled, cross-zone ranges force both. r24 renders `2:24 PM` bare; AA 3112 renders with `EDT`/`CDT` via the cross-zone rule. The 9/27 plan's "r24 carries `EDT`" was written without checking the convention and is superseded.
+- **Q2 — tiebreak (b) applies to synthesized groups only.** On an S6 fallback there is no group; the 9/2 survivor rule in `collapse_display` (longest summary) is unchanged. The 9/24 "floor on an S6 fallback morning" wording is amended out. Backlog line: S6 zoned-survivor tiebreak — fix shape is a byte-exact "item carries a zoned `start`" test inside `collapse_display`, cheap once (i) exists.
+- **Q3 — converted items keep their stored date and sort key.** A convert across local midnight can place a line under the wrong day header; accepted wart, recorded in README Known limitations. Backlog line beside UTC/timezone: re-date converted items (touches `sort_key`, day headers, the window edge).
+- **Q4 — step 4 proof is `test_render_zone.py`** (amended 2026-09-27: `preview_digest.py` takes no fixture file and is not extended — ruled) on self-authored fixtures in the events-and-state shape, `fixtures/render_zone_fixtures.json`, plus a groups list carrying the zone keys: 11 cases — (a), (b) fires and its negative, (c), f1, f2, the AA 3112 and r24 shapes, null fallback, partial end key, and the Q3 midnight wart pinned as-is. No records→items converter; no replay of 09-18/09-11 at this step. Expected day header and line are pinned by script from the captured run, never typed; the dash convention is whatever `_time_label` emits. Live proof is the step-6 kickstart.
+- **Unreachable branch, documented:** "gmail with a captured zone → convert" cannot occur today — `build_records` passes `None` for every gmail zone (`synthesize.py:220`). The rule stands (discriminator is on data, not source); a future extractor change that captures zones lands in convert by design.
+- **Loose end closed:** synthesis input is the rendered partition (`digest.py:741–746`); 46 open against an empty input is appointments outside the 7-day window or approved onto the calendar.
+
+### Ruled 2026-09-27 (second session) — path (a) build rulings
+
+- **No renderer-side tripwire.** An unresolvable render zone at the seam falls back to the label as built, silently. `validate()` has already nulled and logged (`SYNTHESIS ZONE`) every key `ZoneInfo` rejects on the scheduled path, so a bad key only reaches the renderer from a grouping that bypassed `validate()`. A log line there would make the renderer print unconditionally and add a second writer to the `ZONE` line `synth_dump.py` reads. Reason recorded at the fallback in `_render_zone_label`.
+- **Tiebreak (b) requires the same instant.** Inside a synthesized, non-journey group: the primary is unzoned and has a clock; exactly one member carries a zoned start; that start, converted into `render_zone` when the key admits (else its stored zone), has a clock equal to the primary's, compared as time values. `clock = None` never swaps. `group["primary"]` is never written — `_fold` keeps the swapped item for display only.
+- **All or nothing on a converted range.** A zoned item with an end converts only when both `render_zone` and `end_render_zone` admit; otherwise the whole label stays as built. No half-converted line mixing a model zone and a stored zone.
+- **Stash at close.** A session that edits a module the 7:00 run imports ends in one of two states only: committed and kickstarted, or `git stash push -u` with the last commit clean on disk for the next scheduled run.
