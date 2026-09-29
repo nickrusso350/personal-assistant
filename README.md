@@ -118,11 +118,26 @@ Mothballed files are kept deliberately: they carry the reasoning that killed the
 
 ## Setup
 
-Documented from the running install, and verified by one: the production host was migrated to a clean machine using this section as the runbook. Six pieces:
+Documented from the running install, and verified twice: the production host was migrated to a clean machine using this section as the runbook, and on 2026-09-28 a fresh clone on a second machine installed and passed the checks under Verify the install. Eight pieces:
 
-**Interpreter and dependencies.** Production runs on the python.org framework build (`/Library/Frameworks/Python.framework/Versions/3.14/bin/python3`), deliberately not a package-manager Python. The reason is below in Permissions: macOS Automation grants attach to the *specific interpreter binary*, and a package-manager upgrade replaces that binary — silently invalidating the grant, surfacing only as a missed morning. Dependencies are pinned; install with the production interpreter: `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install -r requirements.txt`. On a fresh machine, set `git config user.name` / `user.email` before the first commit.
+**Prerequisites.** Python 3.14 from python.org — the framework build (see Interpreter and dependencies) — plus git, and the repository itself:
 
-**Credentials.** Three variables in `~/.personal_assistant.env` (chmod 600, never committed): `ANTHROPIC_API_KEY`, `PUSHOVER_USER_KEY`, `PUSHOVER_APP_TOKEN`. Every script self-provisions through `env_loader.py` — necessary because launchd's inherited environment is nearly empty; a script that works from a shell and assumes its environment will silently fail at 7am. Google OAuth lives separately as `client_secret_*.json` + `token.json` in the repo directory, both gitignored. The OAuth app must be published to Production in Google Cloud Console, or refresh tokens expire weekly. One Google Calendar setting is a prerequisite, not a preference: **Show events from Gmail must be off.** Google's parser is a redundant writer — it adds its own copies of bookings the pipeline already reads from the booking mail itself, and it has written wrong instants for flights.
+```
+git clone git@github.com:nickrusso350/personal-assistant.git
+```
+
+The repository is currently private; access is on request. On a fresh machine, set `git config user.name` / `user.email` before the first commit.
+
+**Interpreter and dependencies.** Production runs on the python.org framework build (`/Library/Frameworks/Python.framework/Versions/3.14/bin/python3`), deliberately not a package-manager Python. The reason is below in Permissions: macOS Automation grants attach to the *specific interpreter binary*, and a package-manager upgrade replaces that binary — silently invalidating the grant, surfacing only as a missed morning. Dependencies are pinned; install with the production interpreter: `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install -r requirements.txt`. For running the tests without touching the system interpreter, create a venv from the framework build and install the pins there:
+
+```
+/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m venv .venv
+.venv/bin/python3 -m pip install -r requirements.txt
+```
+
+Production does not use a venv, because the Automation grant attaches to the interpreter binary. Verified 2026-09-28 on a second machine from a fresh clone.
+
+**Credentials.** Three variables in `~/.personal_assistant.env` (chmod 600, never committed): `ANTHROPIC_API_KEY`, `PUSHOVER_USER_KEY`, `PUSHOVER_APP_TOKEN`. Every script self-provisions through `env_loader.py` — necessary because launchd's inherited environment is nearly empty; a script that works from a shell and assumes its environment will silently fail at 7am. Google OAuth needs an app of your own: a Google Cloud project with the Gmail API and the Google Calendar API enabled, and an OAuth client of type Desktop app, whose downloaded JSON is the `client_secret_*.json` below. The scopes requested are the `SCOPES` list in `fetch_gmail.py` — `https://www.googleapis.com/auth/gmail.readonly` and `https://www.googleapis.com/auth/calendar.readonly`. The calendar fetch reuses the Gmail credentials (`fetch_calendar.py` calls `fetch_gmail.get_credentials`), so consent happens once, for both scopes, into one `token.json`. Both files live in the repo directory as `client_secret_*.json` + `token.json`, both gitignored; keep exactly one `client_secret_*.json` there, because `get_credentials` takes the first match. The OAuth app must be published to Production in Google Cloud Console, or refresh tokens expire weekly. One Google Calendar setting is a prerequisite, not a preference: **Show events from Gmail must be off.** Google's parser is a redundant writer — it adds its own copies of bookings the pipeline already reads from the booking mail itself, and it has written wrong instants for flights.
 
 **Schedule.** The LaunchAgent is tracked as a template — `com.nickrusso.dailydigest.plist` at repo root, with `__USER__` standing in for the home-directory component. Install by substitution:
 
@@ -143,6 +158,8 @@ launchctl kickstart -p gui/$UID/com.nickrusso.dailydigest
 **Consent sequencing.** Any OAuth scope change, and any new machine, requires interactive re-consent *before* the next scheduled run — otherwise the 7am job blocks on a consent prompt nobody is watching. Delete `token.json` first: a valid stale token silently bypasses the consent flow that carries the change. After consent, read the granted scopes back from the new token.
 
 **Moving hosts.** `state.json` and the Reminders list are a matched pair, joined by reminder ids held in state. Fresh state against an intact list mints duplicate reminders — and ticks on the old copies resolve nothing. A host migration moves state in a single motion at the instant the old scheduler stops, and exactly one machine fires on any given morning; `token.json` never moves (see consent sequencing).
+
+**Verify the install.** Five scripts run from a fresh clone with no credential file, no `token.json`, and no `state.json`: `test_render_zone.py`, `test_distinct_times.py`, `test_plan_parts.py`, `test_reminders_pipeline.py`, and `preview_digest.py`. Run each with the interpreter you installed the pins into. The four `test_` scripts end in `All checks passed` and exit 0; `test_reminders_pipeline.py` passes with no `state.json` present. `preview_digest.py` prints the fixture digests and exits 0 — it has no checks line.
 
 ## Operations
 
