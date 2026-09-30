@@ -123,10 +123,10 @@ Documented from the running install, and verified twice: the production host was
 **Prerequisites.** Python 3.14 from python.org — the framework build (see Interpreter and dependencies) — plus git, and the repository itself:
 
 ```
-git clone git@github.com:nickrusso350/personal-assistant.git
+git clone https://github.com/nickrusso350/personal-assistant.git
 ```
 
-The repository is currently private; access is on request. On a fresh machine, set `git config user.name` / `user.email` before the first commit.
+On a fresh machine, set `git config user.name` / `user.email` before the first commit.
 
 **Interpreter and dependencies.** Production runs on the python.org framework build (`/Library/Frameworks/Python.framework/Versions/3.14/bin/python3`), deliberately not a package-manager Python. The reason is below in Permissions: macOS Automation grants attach to the *specific interpreter binary*, and a package-manager upgrade replaces that binary — silently invalidating the grant, surfacing only as a missed morning. Dependencies are pinned; install with the production interpreter: `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install -r requirements.txt`. For running the tests without touching the system interpreter, create a venv from the framework build and install the pins there:
 
