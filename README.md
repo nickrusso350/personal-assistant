@@ -99,6 +99,7 @@ The production run has no compact render. A digest too long for one Pushover mes
 | | `resolve.py` | resolution + manual-resolution fallback picker; `resolve_one` is the single delete site |
 | | `reminders_write.py` | the one sanctioned write surface: reconcile, write-back, one shared reminder per grouped obligation |
 | | `send_push.py` | Pushover delivery |
+| | `watchdog.py` | the second LaunchAgent: at 07:30 reads `digest.out` for today's `RUN START` → `PRE-SEND` → `Sent via Pushover` and pages on absence; weekly heartbeat on Sundays. No Google, no Reminders, no state |
 | | `env_loader.py` | credential self-provisioning (launchd inherits almost no environment) |
 | **Test / fixture** | `preview_digest.py` | the primary test harness: renders the fixture corpus and replays a recorded synthesis grouping for $0. `--live` is its only networked path — one synthesis call that re-records the grouping |
 | | `test_plan_parts.py` | part-splitting cases |
@@ -145,7 +146,7 @@ Production does not use a venv, because the Automation grant attaches to the int
 sed "s/__USER__/$(whoami)/g" com.nickrusso.dailydigest.plist > ~/Library/LaunchAgents/com.nickrusso.dailydigest.plist
 ```
 
-The template is *verifiable*: re-run the substitution and `diff` it against the installed file — the tracked config and the config that runs are provably the same bytes, a check a literal copy cannot offer. The agent fires `deliver.py` at 07:00 with stdout/stderr appended to `~/Library/Logs/personal_assistant/`. The host does not sleep (`pmset sleep 0`), with a repeating `pmset` wake at 6:55 kept for the power-cut case.
+The template is *verifiable*: re-run the substitution and `diff` it against the installed file — the tracked config and the config that runs are provably the same bytes, a check a literal copy cannot offer. The agent fires `deliver.py` at 07:00 with stdout/stderr appended to `~/Library/Logs/personal_assistant/`. The watchdog's plist, `com.nickrusso.dailydigest.watchdog.plist`, is the same template and installs by the same substitution; it needs the second Pushover token in the env file and nothing else — no OAuth, no Automation grant. The host does not sleep (`pmset sleep 0`), with a repeating `pmset` wake at 6:55 kept for the power-cut case.
 
 **Permissions — the part that bites.** macOS Automation grants are per-app, per-machine, and per-binary: the Python that launchd runs is not the Python your terminal runs. A grant to Terminal proves nothing about the scheduled path. The framework interpreter needs its own Reminders grant, and the only honest proof is firing the real scheduled path on demand:
 
@@ -166,6 +167,8 @@ launchctl kickstart -p gui/$UID/com.nickrusso.dailydigest
 The morning health check is a glance, not a ritual — three instruments, each read for what it can actually prove.
 
 **Pairing in `digest.out`.** Each run brackets itself with `RUN START` and `PRE-SEND` timestamps. No `RUN START` for the morning means one of two things: launchd never spawned the run, or the run died on import — `deliver.py` imports the pipeline before it prints `RUN START`, so that traceback lands in `digest.err`. A `RUN START` with no `PRE-SEND` means the run crashed mid-run. A pair means it reached the send. On this host, all 17 runs logged since 2026-08-30 are paired.
+
+**The watchdog reads the pairing so a missed morning is not a silent one.** A second LaunchAgent, `com.nickrusso.dailydigest.watchdog`, fires at 07:30 and reads the last run in `digest.out`: it must carry today's date and be followed by `PRE-SEND` and then `Sent via Pushover`, the line `deliver.py` prints only after every part was accepted. A full pair is silent; anything less — no run, a crash before send, a send not confirmed, or an unreadable log — is a page under its own sender name and priority, three attempts a minute apart before it gives up and exits nonzero. A monitor that only speaks on failure is indistinguishable from a dead one, so on Sundays it sends a heartbeat carrying the week's paired count: if the Sunday page stops, the watchdog is what's down. It writes `WATCHDOG START` / `OK` / `PAGED` / `FAILED` to its own log and is read with the same `launchctl print` grep on its label.
 
 **`launchctl print`, read at the top level only.** Nested keys sit at two tabs, so the grep anchors on exactly one:
 
@@ -262,6 +265,8 @@ Found on real mornings, documented plainly.
 **Calls and virtual meetings render in the zone stored on the record.** The 2026-09-13 exception — a call renders in Nick's zone for that day, not the organizer's — is out of scope for "finished" and documented here instead. `location_on_day`, which it depends on, is not built. Reopen trigger: the first real call or virtual meeting on the page.
 
 **Which member leads a line is not stable across runs.** At temperature 0 the same morning can come back with a different primary: over 14 mornings replayed three times each, 18 groups changed primary on the prompt before zones (`7130547`) and 17 on the prompt with them, the same calendar-versus-gmail pairs trading places on both. Membership is what the contract governs and it held — 39 of 39 replays matched the recorded grouping on every morning since the 2026-09-13 rewrite. Primary chooses only whose fields render the line; times cannot disagree on the page, because conflicts are computed from instants. A rule-9 tightening is its own backlog item.
+
+**The watchdog cannot catch a shared-cause failure.** It covers the no-spawn and crash classes when the mini is up and the network is back by 07:30. Three shapes stay silent: the watchdog itself not spawned (whatever refused the digest's agent likely refused this one), the network down at 07:30 as at 07:00 (it detects correctly and cannot page), and the mini off. The Sunday heartbeat turns the first into a weekly human check; the only design that catches the third inverts the signal — the digest pings an external dead-man's switch that pages on absence — and that adds a third-party dependency and a credential, so it is backlogged as its own design question rather than bolted on.
 
 **State grows without bound.** Resolved and auto-dropped records persist forever. Harmless at current volume, unaddressed by design priority, not by oversight.
 
