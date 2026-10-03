@@ -18,6 +18,9 @@ SYNTHESIS ZONE lines (a key validate() nulled) are passed through from the
 otherwise swallowed log.
 SYNTHESIS FALLBACK lines are passed through the same way (2026-09-26): the
 error text is what attributes a fallback, and the cause alone does not.
+SYNTHESIS PRIMARY lines are passed through the same way (2026-10-03): with
+code selecting the primary, the G lines show code's pick, and these lines
+are where the model's differing proposal and the deciding term survive.
 
 Usage: python3 replay_mornings.py 2026-09-11 2026-09-12 2026-09-13
 """
@@ -98,6 +101,8 @@ def main():
                       if l.startswith("SYNTHESIS ZONE ")]
         fallback_lines = [l for l in swallowed.getvalue().splitlines()
                           if l.startswith("SYNTHESIS FALLBACK ")]
+        primary_lines = [l for l in swallowed.getvalue().splitlines()
+                         if l.startswith("SYNTHESIS PRIMARY ")]
         if groups is None:
             print("%s  FALLBACK cause=%s" % (d, cause))
             for line in zone_lines + fallback_lines:
@@ -129,7 +134,7 @@ def main():
             print("  G %s primary=%s zones=%s -> %s"
                   % (",".join(byrec(g["members"])), g["primary"],
                      g.get("render_zone"), g.get("end_render_zone")))
-        for line in zone_lines:
+        for line in zone_lines + primary_lines:
             print("  " + line)
 
 

@@ -23,6 +23,11 @@ override runs after the reply parses and before validate() (ruled
 zone. The prompt is unchanged; the model still answers for codes, and the
 RAW line keeps its answer, so RAW against RESULT shows every override.
 
+Amended 2026-10-02/03 (primary drift, option (b)): the model proposes the
+primary, code selects it. After validate() returns, _select_primaries
+re-picks every multi-member group's primary by an exact ordered rule and logs
+SYNTHESIS PRIMARY when its pick differs from the model's.
+
 Disagreement is code's, not the model's (corrected 2026-09-21; the model has
 never reported it). derive_conflicts compares the members' own stored fields,
 and _distinct_times compares instants rather than clock strings (ruled
@@ -564,6 +569,147 @@ def validate(grouping, records, log=True):
     return {"groups": out}
 
 
+PRIMARY_TERMS = (0, 1, 2, 3, 4, 5, 6)
+
+
+def _is_journey(members, by_id):
+    """True when the members carry two or more distinct "FLIGHT " identifiers.
+
+    Code-derived, never model-stated: the reply has no journey field, and
+    prompt rule 3 is the model's reason to merge, not a flag code reads. The
+    test is digest._is_journey's (ruled 2026-09-16) over the same
+    build_records identifiers, exact string comparison, so a group this
+    selector treats as a journey is exactly a group the renderer expands into
+    Departure and Arrival. Restated here rather than imported: digest imports
+    this module.
+    """
+    flights = {identifier
+               for m in members
+               for identifier in (by_id[m].get("identifiers") or [])
+               if identifier.startswith("FLIGHT ")}
+    return len(flights) >= 2
+
+
+def _start_instant(record):
+    """The record's start as a UTC instant, or None. Only a record with a
+    stored zone has an instant: a bare clock (every gmail record) is a clock
+    string, not an instant (ruled 2026-09-14), and an all-day record has no
+    clock. Unparseable fields are None, never a raise."""
+    clock, zone, d = record.get("time"), record.get("zone"), record.get("date")
+    if not (clock and zone and d):
+        return None
+    try:
+        if isinstance(d, str):
+            d = date.fromisoformat(d)
+        hh, mm = clock.split(":")
+        local = datetime(d.year, d.month, d.day, int(hh), int(mm),
+                         tzinfo=ZoneInfo(zone))
+    except (ValueError, KeyError, AttributeError, TypeError,
+            ZoneInfoNotFoundError):
+        return None
+    return local.astimezone(timezone.utc)
+
+
+def _primary_key(record, journey):
+    """The selector's ordered key for one member; lowest wins. One tuple slot
+    per term, in PRIMARY_TERMS order:
+
+      (0) journey groups only: earliest start instant; a member with no
+          instant sorts after every member with one. Constant otherwise.
+      (1) stored start zone present (non-empty string) over absent/None.
+      (2) timed start over all-day: "time" carries a clock, the same
+          presence test derive_conflicts uses for "carries a time".
+      (3) source == "calendar" over anything else ("gmail").
+      (4) non-empty location over "" (build_records writes "" for none).
+      (5) shortest summary by UTF-8 byte length.
+      (6) lowest record id, compared as the str it is ("r1", "r2", ...).
+          Python orders an ASCII str exactly as its bytes, so this is a byte
+          comparison and "r10" sorts before "r2". It only breaks a tie that
+          (0)-(5) left standing, so any fixed order serves.
+    """
+    if journey:
+        instant = _start_instant(record)
+        term0 = (0, instant) if instant is not None else (1, None)
+    else:
+        term0 = (0, None)
+    zone = record.get("zone")
+    return (
+        term0,
+        0 if isinstance(zone, str) and zone else 1,
+        0 if record.get("time") else 1,
+        0 if record.get("source") == "calendar" else 1,
+        0 if record.get("location") else 1,
+        len((record.get("summary") or "").encode("utf-8")),
+        record["id"],
+    )
+
+
+def _term0_lt(a, b):
+    """Term (0) order without comparing None to a datetime."""
+    if a[0] != b[0]:
+        return a[0] < b[0]
+    return a[1] is not None and a[1] < b[1]
+
+
+def _key_lt(a, b):
+    """Lexicographic a < b over _primary_key tuples; (term, a<b) of the first
+    term that separates, or (None, False) when the keys are equal."""
+    for term, (x, y) in zip(PRIMARY_TERMS, zip(a, b)):
+        if x == y:
+            continue
+        return term, (_term0_lt(x, y) if term == 0 else x < y)
+    return None, False
+
+
+def _select_primaries(grouping, records, log=True):
+    """Re-select every multi-member group's primary by an exact ordered rule.
+    Mutates grouping in place. Never raises on a validated grouping.
+
+    Ruled 2026-10-02 (option (b), primary drift), amended 2026-10-03. The
+    model's primary drifted across passes at a fixed prompt (9 mornings / 13
+    groups over 22, three passes each), and when two copies of one obligation
+    store different clocks a flip puts a wrong time on the page. So the model
+    proposes the primary (prompt rule 9, unchanged) and code selects it from
+    the members by _primary_key: the first term that separates two members
+    wins, lowest key is primary. No scoring, no fuzzy test; byte comparisons.
+
+    Placement (ruled 2026-10-03): after validate() returns and before the
+    RESULT log. validate() has already proved every member is a known record
+    and the model's primary is one of them; a primary outside the members
+    still fails into the S6 fallback there and is never repaired here.
+    validate()'s canonical order keys on member positions, not on primary,
+    so it holds unchanged.
+
+    When code's pick differs from the model's, the group's primary is
+    rewritten and one SYNTHESIS PRIMARY line names the sorted members, both
+    picks, and the first term on which the two differ. A matching pick is
+    silent. RAW keeps the model's answer, so RAW against RESULT shows every
+    override, as it does for the airports.py zones.
+
+    Display-only: group["primary"] picks the line the renderer builds from.
+    Identity, state, conflicts, and Reminders never read it (write_back
+    titles from the commitment's own "what").
+    """
+    by_id = {r["id"]: r for r in records}
+    for g in grouping["groups"]:
+        members = g["members"]
+        if len(members) < 2:
+            continue
+        journey = _is_journey(members, by_id)
+        keys = {m: _primary_key(by_id[m], journey) for m in members}
+        pick = members[0]
+        for m in members[1:]:
+            if _key_lt(keys[m], keys[pick])[1]:
+                pick = m
+        model = g["primary"]
+        if pick == model:
+            continue
+        term, _ = _key_lt(keys[pick], keys[model])
+        g["primary"] = pick
+        _log("PRIMARY", {"members": sorted(members), "model": model,
+                         "code": pick, "term": term}, log)
+
+
 def _last_json_object(text):
     """(start, end) of the last complete top-level JSON object, or None.
 
@@ -693,5 +839,6 @@ def synthesize(records, today, log=True):
         _log("FALLBACK", {"cause": "validation", "error": str(error),
                           "stop_reason": stop_reason}, log)
         return None, "validation"
+    _select_primaries(grouping, records, log)
     _log("RESULT", grouping, log)
     return grouping, None

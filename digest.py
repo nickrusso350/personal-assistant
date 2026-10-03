@@ -488,6 +488,7 @@ def _has_zoned_start(item):
     return start is not None and getattr(start.tzinfo, "key", None) is not None
 
 
+# Unreachable on any grouping synthesize() returns since its primary selector (10/03): an unzoned primary implies no zoned member; removal belongs to backlog line 1.
 def _zoned_tiebreak(items, ref_to_group, by_rid):
     """{id(group): ref} for groups whose line a zoned member should render.
 

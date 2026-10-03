@@ -152,3 +152,80 @@ Rulings on the four questions and one choice the step-2 seam report surfaced. Bu
 - **Tiebreak (b) requires the same instant.** Inside a synthesized, non-journey group: the primary is unzoned and has a clock; exactly one member carries a zoned start; that start, converted into `render_zone` when the key admits (else its stored zone), has a clock equal to the primary's, compared as time values. `clock = None` never swaps. `group["primary"]` is never written — `_fold` keeps the swapped item for display only.
 - **All or nothing on a converted range.** A zoned item with an end converts only when both `render_zone` and `end_render_zone` admit; otherwise the whole label stays as built. No half-converted line mixing a model zone and a stored zone.
 - **Stash at close.** A session that edits a module the 7:00 run imports ends in one of two states only: committed and kickstarted, or `git stash push -u` with the last commit clean on disk for the next scheduled run.
+
+## Rulings 2026-10-02 (primary-drift design table)
+
+Correction to the record (9/30 framing was wrong for one shape): "code-derived from stored
+instants" protects the renderer from mislabeling a stored instant; it does nothing when two
+copies of one obligation store different clocks (calendar copy 04:00 America/Los_Angeles,
+gmail copy 07:00 bare home-zone clock). A primary flip onto the gmail copy puts a wrong time
+on the page. Tiebreak (b) cannot rescue it (it swaps only on equal clocks). Primary drift is a
+wrong-time defect, not cosmetic. Reproducible figure, current prompt @4000: 9 mornings /
+13 groups over 22; old prompt 12 / 18. The 9/26 "11 / 17" figure is not reproducible.
+
+1. Ruled (Nick, 10/02, on recommendation) -- option (b), primary selection moves into code.
+   BUILT 2026-10-03: `synthesize._select_primaries` (synthesize.py:664), called from
+   `synthesize()` at synthesize.py:842. Journeys for term (0) are code-derived (two or more
+   distinct `FLIGHT ` identifiers, `digest._is_journey`'s test restated as
+   `synthesize._is_journey`). The log line is `SYNTHESIS PRIMARY` with a JSON payload
+   `{members (sorted), model, code, term}`, through `_log`, silent under `log=False`. Proof:
+   `primary_fixtures.py` on `fixtures/primary_fixtures.json`; `replay_mornings.py` passes
+   `PRIMARY` lines through. The one renderer touch is the comment above `_zoned_tiebreak`.
+   The model keeps proposing groups and a primary; after parse, code re-selects the primary
+   from the group's members by an exact ordered rule (as amended 10/03, below):
+     (0) journey groups only: earliest start instant, among members that have one;
+         bare-clock members sort after; ties fall through,
+     (1) stored zone present, (2) timed start over all-day, (3) source == "calendar",
+     (4) non-empty location, (5) shortest summary by byte length,
+     (6) lowest record id as final tie.
+   Byte comparisons throughout. Log `SYNTHESIS PRIMARY` (group label, model's pick, code's
+   pick) only when the code's pick differs from the model's. Display-only; identity untouched;
+   no prompt change; no renderer change. Rule 9 stays in the prompt as the proposal.
+   Reminder titles are structurally unaffected (`write_back` titles from the commitment's own
+   `what`, never `group["primary"]`).
+   Placement ruled 10/03 (Nick, on the seam read): the selector runs after validate()
+   returns and before the RESULT log (validate() applies canonical order; the order is
+   independent of primary), on every group with two or more members.
+   Reason: `validate()` checks the primary only for membership and rewrites nothing, so
+   running before it buys nothing and would (a) require the selector to guard malformed
+   groups and (b) silently repair a model primary absent from `members`, a failure that
+   today reaches the S6 fallback and must keep doing so. The `SYNTHESIS PRIMARY` log line
+   is keyed by the sorted member ids, never by group index.
+   Amendments ruled 10/03 (Nick, on recommendation), from the seam read's item 7:
+   - Journeys: rule 9's "earliest departure" had no term in (1)-(5); a later leg could
+     become primary and move the Departure line. Term (0) added, journey groups only.
+     Code states at build how a group is identified as a journey.
+   - Hotels: prompt rule 7 (timed check-in over all-day stay) was reversed for a gmail
+     check-in beside a calendar all-day stay (tie on (1), stay wins on source). Term (2),
+     timed over all-day, added; an exact presence check on the start time. No other named
+     twin shape is affected (cars, AA, Dollar are timed on both copies).
+   - Tiebreak (b) is dead after the selector (an unzoned primary now means no member is
+     zoned). Left in place with a comment saying so; removal belongs to backlog line 1.
+   Counter on record: two selection rules now coexist (this selector; `collapse_display`'s
+   9/2 survivor rule on the fallback path). Accepted for scope -- see backlog line 1.
+
+2. Ruled (Nick, 10/02) -- option (i), confirmation codes stay on the line as rendered.
+   Reopen trigger: a confirmation code reaching a reminder title (structurally impossible
+   today).
+
+3. Ruled (Nick, 10/02) -- watchdog heartbeat priority stays 0 as built. Absence is the
+   signal; 0 for the Sunday "alive", 1 for the failure page keeps them distinguishable.
+
+4. Ruled (Nick, 10/02) -- order: the (b) build is next, before the iMessage design table,
+   then the Grok avatar layer (a defect on record carries its fix's place in the order).
+
+Backlog lines added 10/02 (shape only, not ruled):
+- Line 1: unify the (b) selector, `collapse_display`'s survivor rule, and the S6
+  zoned-survivor line into one exact rule; rule 9 then becomes removable from the prompt.
+- Line 2: gmail-captured-zone -- extractor captures a stated zone when the email body states
+  one, so `digest.py`'s unreachable "gmail with a captured zone -> convert" branch comes
+  alive. Honest residue: emails stating a clock with no zone.
+
+Build proof for (b) (ruled 10/02): fixtures in `fixtures/` for each twin shape -- car pick-up
+cal/gm, car drop-off cal/gm with unequal clocks, hotel a/b (confirmation suffix), AA-a/AA-b,
+Dollar cal/gm -- plus negatives (single-member group: no override, no log; model's pick already
+the rule's pick: no log), byte-identical over three passes; corpus three passes on the current
+prompt with primary identical on all 22 mornings, zero fallbacks, membership per the 9/26
+criterion; override count reported before commit. One commit, push with `ls-remote`
+read-back, no kickstart. Verification is the next live morning holding a twin: one line per
+obligation carrying the calendar copy's clock and location.

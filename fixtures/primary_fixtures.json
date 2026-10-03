@@ -1,0 +1,45 @@
+{
+ "about": "Primary-selector fixtures (ruled 2026-10-02, amended 2026-10-03). Self-authored: every vendor, code, address, and name is invented. Records are in the SYNTHESIS INPUT shape; proposals are the model replies the offline layer feeds through synthesize()'s real post-parse path; expected names the primary code must select, the term that decides it, and the PRIMARY log the offline proposal must produce (null = silence). Written before the first run.",
+ "today": "2026-10-12",
+ "records": [
+  {"id": "r1", "ref": ["fixture", "a_cal"], "kind": "event", "source": "calendar", "date": "2026-10-14", "time": "10:00", "zone": "America/Los_Angeles", "end_time": "10:30", "end_zone": "America/Los_Angeles", "end_date": null, "summary": "Hertz pick-up K7Q42ZP", "location": "Hertz, 9000 Airport Blvd, Los Angeles, CA", "identifiers": ["K7Q42ZP"]},
+  {"id": "r2", "ref": ["fixture", "a_gm"], "kind": "appointment", "source": "gmail", "date": "2026-10-14", "time": "10:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Hertz car pick-up at LAX, confirmation K7Q42ZP", "location": "", "identifiers": ["K7Q42ZP"]},
+  {"id": "r3", "ref": ["fixture", "b_cal"], "kind": "event", "source": "calendar", "date": "2026-10-16", "time": "04:00", "zone": "America/Los_Angeles", "end_time": "04:30", "end_zone": "America/Los_Angeles", "end_date": null, "summary": "Hertz return K7Q42ZP", "location": "Hertz, 9000 Airport Blvd, Los Angeles, CA", "identifiers": ["K7Q42ZP"]},
+  {"id": "r4", "ref": ["fixture", "b_gm"], "kind": "appointment", "source": "gmail", "date": "2026-10-16", "time": "07:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Hertz car drop-off at LAX, confirmation K7Q42ZP", "location": "", "identifiers": ["K7Q42ZP"]},
+  {"id": "r5", "ref": ["fixture", "c_a"], "kind": "appointment", "source": "gmail", "date": "2026-10-14", "time": "15:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Check-in: Harbor View Inn", "location": "", "description_snippet": "Your stay is confirmed. Confirmation 84417203.", "identifiers": ["84417203"]},
+  {"id": "r6", "ref": ["fixture", "c_b"], "kind": "appointment", "source": "gmail", "date": "2026-10-14", "time": "15:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Check-in: Harbor View Inn (Confirmation #84417203)", "location": "", "description_snippet": "Your stay is confirmed. Confirmation 84417203.", "identifiers": ["84417203"]},
+  {"id": "r7", "ref": ["fixture", "d_bare"], "kind": "event", "source": "calendar", "date": "2026-10-15", "time": "08:15", "zone": "America/Los_Angeles", "end_time": "13:40", "end_zone": "America/Chicago", "end_date": null, "summary": "AA 2214 LAX to DFW", "location": "", "identifiers": ["FLIGHT 2214"]},
+  {"id": "r8", "ref": ["fixture", "d_loc"], "kind": "event", "source": "calendar", "date": "2026-10-15", "time": "08:15", "zone": "America/Los_Angeles", "end_time": "13:40", "end_zone": "America/Chicago", "end_date": null, "summary": "Flight AA 2214 LAX to DFW", "location": "Los Angeles International Airport (LAX)", "identifiers": ["FLIGHT 2214"]},
+  {"id": "r9", "ref": ["fixture", "e_cal"], "kind": "event", "source": "calendar", "date": "2026-10-15", "time": "06:30", "zone": "America/Chicago", "end_time": "07:00", "end_zone": "America/Chicago", "end_date": null, "summary": "Dollar car return D2B9X7Q4", "location": "Dollar Rent A Car, 2424 E 38th St, Dallas, TX", "identifiers": ["D2B9X7Q4"]},
+  {"id": "r10", "ref": ["fixture", "e_gm"], "kind": "appointment", "source": "gmail", "date": "2026-10-15", "time": "06:30", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Dollar Rent A Car drop-off, confirmation D2B9X7Q4", "location": "", "identifiers": ["D2B9X7Q4"]},
+  {"id": "r11", "ref": ["fixture", "f_gm"], "kind": "appointment", "source": "gmail", "date": "2026-10-17", "time": "16:00", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Check-in: Lakeside Lodge", "location": "", "identifiers": []},
+  {"id": "r12", "ref": ["fixture", "f_stay", "start"], "kind": "event", "source": "calendar", "date": "2026-10-17", "time": null, "zone": null, "end_time": null, "end_zone": null, "end_date": "2026-10-19", "summary": "Stay at Lakeside Lodge", "location": "Lakeside Lodge, 12 Shore Rd, Lake Placid, NY", "identifiers": []},
+  {"id": "r13", "ref": ["fixture", "f_stay", "end"], "kind": "event", "source": "calendar", "date": "2026-10-19", "time": null, "zone": null, "end_time": null, "end_zone": null, "end_date": "2026-10-19", "summary": "Stay at Lakeside Lodge", "location": "Lakeside Lodge, 12 Shore Rd, Lake Placid, NY", "identifiers": []},
+  {"id": "r14", "ref": ["fixture", "g_leg1"], "kind": "event", "source": "calendar", "date": "2026-10-20", "time": "07:00", "zone": "America/Los_Angeles", "end_time": "10:30", "end_zone": "America/Denver", "end_date": null, "summary": "UA 1180 SEA to DEN, confirmation QT6R3W", "location": "", "identifiers": ["QT6R3W", "FLIGHT 1180"]},
+  {"id": "r15", "ref": ["fixture", "g_leg2"], "kind": "event", "source": "calendar", "date": "2026-10-20", "time": "11:45", "zone": "America/Denver", "end_time": "15:20", "end_zone": "America/Chicago", "end_date": null, "summary": "UA 455 DEN to ORD QT6R3W", "location": "Denver International Airport", "identifiers": ["QT6R3W", "FLIGHT 455"]},
+  {"id": "r16", "ref": ["fixture", "i_cal"], "kind": "event", "source": "calendar", "date": "2026-10-18", "time": "19:30", "zone": "America/New_York", "end_time": "21:00", "end_zone": "America/New_York", "end_date": null, "summary": "Dinner at Marlowe's", "location": "Marlowe's, 4 Main St, Saratoga Springs, NY", "identifiers": []},
+  {"id": "r17", "ref": ["fixture", "i_gm"], "kind": "appointment", "source": "gmail", "date": "2026-10-18", "time": "19:30", "zone": null, "end_time": null, "end_zone": null, "end_date": null, "summary": "Dinner reservation at Marlowe's, reservation 5502913", "location": "", "identifiers": ["5502913"]}
+ ],
+ "proposals": [
+  {"members": ["r1", "r2"], "primary": "r2"},
+  {"members": ["r3", "r4"], "primary": "r4"},
+  {"members": ["r5", "r6"], "primary": "r6"},
+  {"members": ["r7", "r8"], "primary": "r7"},
+  {"members": ["r9", "r10"], "primary": "r10"},
+  {"members": ["r11", "r12"], "primary": "r12"},
+  {"members": ["r13"], "primary": "r13"},
+  {"members": ["r14", "r15"], "primary": "r15"},
+  {"members": ["r16", "r17"], "primary": "r16"}
+ ],
+ "expected": [
+  {"case": "a", "members": ["r1", "r2"], "primary": "r1", "term": 1, "log": {"model": "r2", "code": "r1", "term": 1}, "why": "Car pick-up twin, same clock. The calendar copy carries a stored zone; the gmail copy is a bare clock."},
+  {"case": "b", "members": ["r3", "r4"], "primary": "r3", "term": 1, "log": {"model": "r4", "code": "r3", "term": 1}, "why": "Car drop-off twin with unequal clocks: calendar 04:00 America/Los_Angeles, gmail 07:00 bare. The 10/02 wrong-time shape; tiebreak (b) could not rescue it (clocks differ)."},
+  {"case": "c", "members": ["r5", "r6"], "primary": "r5", "term": 5, "log": {"model": "r6", "code": "r5", "term": 5}, "why": "Two gmail hotel copies, tied on (1)-(4); the copy without the confirmation suffix is shorter by bytes. Both carry confirmation 84417203 (in description_snippet; r6 also in its summary) so rule 2(a) decides the merge - amended 2026-10-03 after live pass 3 left the pair unmerged when the merge rested on rule 2(b) alone."},
+  {"case": "d", "members": ["r7", "r8"], "primary": "r8", "term": 4, "log": {"model": "r7", "code": "r8", "term": 4}, "why": "Two calendar twins of one flight, same instant, one flight number (not a journey). Only r8 is located, so (4) decides - ahead of (5), which on its own would pick r7, the shorter summary."},
+  {"case": "e", "members": ["r9", "r10"], "primary": "r9", "term": 1, "log": {"model": "r10", "code": "r9", "term": 1}, "why": "Dollar drop-off twin: calendar zoned, gmail bare."},
+  {"case": "f", "members": ["r11", "r12"], "primary": "r11", "term": 2, "log": {"model": "r12", "code": "r11", "term": 2}, "why": "Gmail timed check-in beside the calendar all-day stay's start day: tied on (1) (neither has a stored zone), timed wins on (2). Without (2), (3) would pick the stay and reverse prompt rule 7."},
+  {"case": "h", "members": ["r13"], "primary": "r13", "term": null, "log": null, "why": "Negative: single-member group (the stay's last day). Untouched, no log."},
+  {"case": "g", "members": ["r14", "r15"], "primary": "r14", "term": 0, "log": {"model": "r15", "code": "r14", "term": 0}, "why": "Journey: two FLIGHT identifiers. r14 departs 07:00 America/Los_Angeles (14:00 UTC), r15 11:45 America/Denver (17:45 UTC). (0) picks the earlier leg - ahead of (4) and (5), which on their own would pick r15."},
+  {"case": "i", "members": ["r16", "r17"], "primary": "r16", "term": 1, "log": null, "why": "Negative: the proposal already names the rule's pick (calendar, zoned). Untouched, no log."}
+ ]
+}
