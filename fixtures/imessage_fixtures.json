@@ -1,0 +1,638 @@
+{
+ "_format": "imessage extraction fixtures (2026-10-05). allowlist: handles allowed for this case. chat: the chat's handle. targets: message index -> expected extraction (list, byte-identical to the mail schema), or 'gate' = never reaches extraction. after_guard: expected post-guard outcome. guard_days: placeholder 120, re-set from measurement. All handles invented; 'me' is the account owner.",
+ "cases": [
+  {
+   "id": "a",
+   "desc": "specimen shape, them-propose / me-confirm; obligation attaches to the completing (outbound) reply",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-A-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-02T16:10:00",
+     "text": "Can you meet at the office Wed 1400 to go over the package?"
+    },
+    {
+     "guid": "FX-A-1",
+     "sender": "me",
+     "ts": "2026-10-02T16:14:00",
+     "text": "Yes, see you then"
+    }
+   ],
+   "targets": {
+    "0": [],
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Meet at the office to go over the package",
+      "date": "2026-10-07",
+      "time": "14:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "a2",
+   "desc": "mirror of (a): me-propose / them-confirm; obligation attaches to their reply",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-A2-0",
+     "sender": "me",
+     "ts": "2026-10-02T16:10:00",
+     "text": "Can you meet at the office Wed 1400 to go over the package?"
+    },
+    {
+     "guid": "FX-A2-1",
+     "sender": "+18135550101",
+     "ts": "2026-10-02T16:14:00",
+     "text": "Works for me"
+    }
+   ],
+   "targets": {
+    "0": [],
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Meet at the office to go over the package",
+      "date": "2026-10-07",
+      "time": "14:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "b",
+   "desc": "partial then completing: the question extracts nothing; the answer extracts the meeting",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550102",
+   "messages": [
+    {
+     "guid": "FX-B-0",
+     "sender": "+18135550102",
+     "ts": "2026-10-05T10:02:00",
+     "text": "Thursday for the handoff?"
+    },
+    {
+     "guid": "FX-B-1",
+     "sender": "me",
+     "ts": "2026-10-05T10:05:00",
+     "text": "2 works"
+    }
+   ],
+   "targets": {
+    "0": [],
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Handoff",
+      "date": "2026-10-08",
+      "time": "14:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "c",
+   "desc": "'next Thursday' sent on a Monday: nearest upcoming is 10/08, 'next' is the one after",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-C-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T12:30:00",
+     "text": "lunch next Thursday at noon?"
+    },
+    {
+     "guid": "FX-C-1",
+     "sender": "me",
+     "ts": "2026-10-05T12:33:00",
+     "text": "yes"
+    }
+   ],
+   "targets": {
+    "0": [],
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Lunch",
+      "date": "2026-10-15",
+      "time": "12:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "d",
+   "desc": "bare 'Thursday' sent on a Thursday: nearest upcoming includes today",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-D-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-08T09:00:00",
+     "text": "still on for Thursday at 3?"
+    },
+    {
+     "guid": "FX-D-1",
+     "sender": "me",
+     "ts": "2026-10-08T09:01:00",
+     "text": "yep"
+    }
+   ],
+   "targets": {
+    "0": [],
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Meeting",
+      "date": "2026-10-08",
+      "time": "15:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "e",
+   "desc": "outbound commitment with no reply needed: a task, attached to my own message",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550102",
+   "messages": [
+    {
+     "guid": "FX-E-0",
+     "sender": "me",
+     "ts": "2026-10-05T18:40:00",
+     "text": "I'll bring the forms Tuesday"
+    }
+   ],
+   "targets": {
+    "0": [
+     {
+      "type": "task",
+      "what": "Bring the forms",
+      "date": "2026-10-06",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "f",
+   "desc": "non-allowlisted sender: gated before extraction, zero tokens, regardless of content",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550199",
+   "messages": [
+    {
+     "guid": "FX-F-0",
+     "sender": "+18135550199",
+     "ts": "2026-10-05T11:00:00",
+     "text": "meet me at 5 at the office"
+    }
+   ],
+   "targets": {
+    "0": "gate"
+   }
+  },
+  {
+   "id": "g",
+   "desc": "spam shape: gated by allowlist; also the extraction-layer negative if it ever arrives via an allowlisted chat",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "55555",
+   "messages": [
+    {
+     "guid": "FX-G-0",
+     "sender": "55555",
+     "ts": "2026-10-05T11:30:00",
+     "text": "Reserve this today! Limited slots — reply YES now"
+    }
+   ],
+   "targets": {
+    "0": "gate"
+   },
+   "extraction_negative": []
+  },
+  {
+   "id": "h",
+   "desc": "open-ended, no fixed when: extracts nothing",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550102",
+   "messages": [
+    {
+     "guid": "FX-H-0",
+     "sender": "+18135550102",
+     "ts": "2026-10-05T19:00:00",
+     "text": "we should grab dinner sometime"
+    }
+   ],
+   "targets": {
+    "0": []
+   }
+  },
+  {
+   "id": "i",
+   "desc": "window guard: resolves to 2027-06-15 (253 days out); dropped with a log line, never rendered. Model declines far next-year dates in the 157–253 d band (10/06); outside the guard either way; i8 carries the live-drop proof. Graded again if the guard window is re-set above ~150 d.",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "guard_days": 120,
+   "ungraded": [
+    "1"
+   ],
+   "messages": [
+    {
+     "guid": "FX-I-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T20:00:00",
+     "text": "let's do dinner on the 15th in June"
+    },
+    {
+     "guid": "FX-I-1",
+     "sender": "me",
+     "ts": "2026-10-05T20:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "0": [],
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2027-06-15",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   },
+   "after_guard": {
+    "1": "drop"
+   }
+  },
+  {
+   "id": "i2",
+   "desc": "in-window twin of (i): resolves to 2026-11-15 (41 days out); kept by the guard, graded normally",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-I2-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T20:00:00",
+     "text": "let's do dinner on the 15th in November"
+    },
+    {
+     "guid": "FX-I2-1",
+     "sender": "me",
+     "ts": "2026-10-05T20:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2026-11-15",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "i3",
+   "desc": "discriminator for (i2): day-of-month date WITH a time",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-I3-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T20:00:00",
+     "text": "dinner on the 15th in November at 7?"
+    },
+    {
+     "guid": "FX-I3-1",
+     "sender": "me",
+     "ts": "2026-10-05T20:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2026-11-15",
+      "time": "19:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "i4",
+   "desc": "discriminator for (i2): day-word date, no time ('next Saturday' sent Monday 10/05 = 10/17)",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-I4-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T20:00:00",
+     "text": "dinner next Saturday?"
+    },
+    {
+     "guid": "FX-I4-1",
+     "sender": "me",
+     "ts": "2026-10-05T20:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2026-10-17",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "i5",
+   "desc": "discriminator for (i2): same proposal, acceptance 'yes' instead of 'sure'",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-I5-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T20:00:00",
+     "text": "let's do dinner on the 15th in November"
+    },
+    {
+     "guid": "FX-I5-1",
+     "sender": "me",
+     "ts": "2026-10-05T20:02:00",
+     "text": "yes"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2026-11-15",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "i7",
+   "desc": "year rollover, short distance: sent 2026-12-20, resolves to 2027-01-15 (26 days out); kept by the guard",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-I7-0",
+     "sender": "+18135550101",
+     "ts": "2026-12-20T15:00:00",
+     "text": "let's do dinner on the 15th in January"
+    },
+    {
+     "guid": "FX-I7-1",
+     "sender": "me",
+     "ts": "2026-12-20T15:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2027-01-15",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "i8",
+   "desc": "long distance, same calendar year: sent 2026-01-10, resolves to 2026-06-15 (156 days out); dropped by the guard; graded on extraction, before the guard",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "guard_days": 120,
+   "messages": [
+    {
+     "guid": "FX-I8-0",
+     "sender": "+18135550101",
+     "ts": "2026-01-10T15:00:00",
+     "text": "let's do dinner on the 15th in June"
+    },
+    {
+     "guid": "FX-I8-1",
+     "sender": "me",
+     "ts": "2026-01-10T15:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2026-06-15",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   },
+   "after_guard": {
+    "1": "drop"
+   }
+  },
+  {
+   "id": "i9",
+   "desc": "next year, just inside the guard: sent 2026-10-05, resolves to 2027-02-01 (119 days out); kept by the guard; graded on extraction, before the guard",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-I9-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T15:00:00",
+     "text": "let's do dinner on the 1st in February"
+    },
+    {
+     "guid": "FX-I9-1",
+     "sender": "me",
+     "ts": "2026-10-05T15:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2027-02-01",
+      "time": null,
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "j",
+   "desc": "K probe: proposal, five unrelated messages, then the completing message; passes only if the window reaches back 7",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550102",
+   "min_window": 7,
+   "messages": [
+    {
+     "guid": "FX-J-0",
+     "sender": "+18135550102",
+     "ts": "2026-10-05T13:00:00",
+     "text": "Thursday 2 for the handoff?"
+    },
+    {
+     "guid": "FX-J-1",
+     "sender": "me",
+     "ts": "2026-10-05T13:01:00",
+     "text": "did you see the game"
+    },
+    {
+     "guid": "FX-J-2",
+     "sender": "+18135550102",
+     "ts": "2026-10-05T13:02:00",
+     "text": "no, worth it?"
+    },
+    {
+     "guid": "FX-J-3",
+     "sender": "me",
+     "ts": "2026-10-05T13:03:00",
+     "text": "second half"
+    },
+    {
+     "guid": "FX-J-4",
+     "sender": "+18135550102",
+     "ts": "2026-10-05T13:04:00",
+     "text": "ok"
+    },
+    {
+     "guid": "FX-J-5",
+     "sender": "me",
+     "ts": "2026-10-05T13:05:00",
+     "text": "anyway"
+    },
+    {
+     "guid": "FX-J-6",
+     "sender": "me",
+     "ts": "2026-10-05T13:06:00",
+     "text": "ok 2 works"
+    }
+   ],
+   "targets": {
+    "6": [
+     {
+      "type": "appointment",
+      "what": "Handoff",
+      "date": "2026-10-08",
+      "time": "14:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "k",
+   "desc": "reply_needed trap: an allowlisted question waiting on me extracts nothing — texts never emit reply_needed",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-K-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T21:00:00",
+     "text": "can you confirm by tonight?"
+    }
+   ],
+   "targets": {
+    "0": []
+   }
+  }
+ ]
+}

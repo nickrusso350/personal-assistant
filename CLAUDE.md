@@ -247,3 +247,25 @@ Design only; nothing built. Summary: Session_Summary_2026-10-04.md.
 - **Honest limits** text for the README Known-limitations section is ruled as drafted in the 10/04 summary and lands at build.
 - **Placement:** iMessage builds next. Two-plus sessions: probe → fixtures → build → grant-and-proof. No production file is edited until the probe has reported.
 - **Logged, not ruled:** tree hygiene — `send_imessage.py` (mothballed pre-Pushover delivery) and `calendar_write.py` (Step 5a gated writer, imported only by `approve.py`, dead under `calendar.readonly`) — remove or document.
+
+## Rulings 2026-10-05 (iMessage build, session one)
+
+- Window guard drops past, unparseable, AND null dates: a text commitment with no fixed date never renders.
+- Raw handles never reach the prompt. Senders are labeled `me`, `them`, `them-2`… by first appearance in the window; no `is_group` argument.
+- `what` names the activity only — never restating the date or time.
+- A statement by `me` of what I will do by a day is a complete commitment on its own (a task) and needs no reply.
+- A reply that affirms a proposal completes the arrangement, however it is worded — "yes", "sure", "ok", "that works" are illustrations, not a list. An affirmation needs no time of its own; if the proposal carried a date, the affirming reply completes it. (Measured 10/05: the model treated "sure" without a time as not completing; fix is this principle in the prompt, not a word list.)
+- Fixture i is graded on the extraction, before the guard (the 10/05 post-guard grading was withdrawn the same evening). It FAILs on record until the affirmation fix passes it; the guard drop is then exercised live.
+- Discriminators i2–i5 (3/3 each): i2 day-of-month/no time/"sure" FAIL; i3 day-of-month/7pm/"sure" PASS; i4 day-word/no time/"sure" FAIL; i5 day-of-month/no time/"yes" PASS. Single-variable on i5: "sure" with no time attached is the cause — not the date form, not the distance; "sure" with a time (i3) completes.
+- Harness criterion: exact on `type`/`date`/`time`/`action_needed`; `what` non-empty and printed, not graded. Commit criterion: every graded line PASS on three separate `--live` runs.
+- `extract_imessage.py` is a sibling module; nothing on the 07:00 path imports it until session two wiring.
+
+## Rulings 2026-10-06 (iMessage build, session two)
+
+- Affirmation principle in the prompt (10/05 ruling) landed: i2 and i4 PASS ×3, no regression. 48 calls.
+- i7/i8 discriminators (both PASS ×3): year rollover alone (26 d) and long distance alone (156 d, same year) both extract. i8 gave the first live `IMESSAGE GUARD` drop. What remains on i is next-year-and-far, 157–253 d band — outside the guard either way.
+- i9 (next-year edge inside the window, 119 d) PASS ×3. The guard window is covered end to end across a year boundary.
+- Ruled: fixture i:1 is a documented-limit probe, not a graded case. New fixture key `"ungraded": [targets]`; live layer prints `UNGRADED`, counts toward neither exit code nor PASS total; offline layer unchanged. Reopen trigger: guard window re-set above ~150 d.
+- Recorded, not fixed tonight: d:1's what restated "Thursday at 3" on 3 of 6 runs — a lapse against the ruled "activity only" rule. what titles every reminder (reminders_write.py:303) and leads every digest line (digest.py:248), and the text path inherits both at wiring, so this is graded before the wiring commit, not after. Candidate mechanism (unruled): a negative grade on what — no digits, weekday names, month names, or am/pm tokens — exact and bounded, since free-text exact match is not. First item of session three.
+- Commit evidence: three separate `--live` runs, 23/23 graded, 1 ungraded, exit 0, identical PASS line md5. Evidence: `~/Documents/Claude/personal_assistant_scratch/2026-10-06/live7_1–3.txt`.
+- i6 ("yes" + day-word + no time) reserved, unruled.
