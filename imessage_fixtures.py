@@ -2,7 +2,7 @@
 """Run the iMessage extraction fixtures through extract_imessage. Explicit invocation only.
 
 Written 2026-10-05 for the iMessage-as-source build (design table ruled
-2026-10-04). fixtures/imessage_fixtures.json holds nineteen self-authored cases,
+2026-10-04). fixtures/imessage_fixtures.json holds twenty-three self-authored cases,
 expected extractions written before the first run; this script reads it and
 never edits it. All handles in it are invented.
 
@@ -19,10 +19,21 @@ Two layers:
     Case "g" also runs its extraction_negative (the spam text as if it had
     come through an allowlisted chat, expected []). Billable: one call each.
 
+  OFFLINE also feeds fixed strings through apply_what_gate (GATE_CASES) and
+    checks the exact output and the exact WHAT SANITIZED line, or its absence.
+
+Order (ruled 2026-10-09): the model's list goes through apply_what_gate, then
+apply_window_guard, then grading - the same order as production. Both the
+gated list and the after-guard list are graded, so the grade sees the
+post-gate title. The gate's lines print as "  | WHAT SANITIZED ...".
+
 Pass criterion (ruled 2026-10-05): same length, and per item an exact match
 on type, date, time and action_needed; "what" must be a non-empty string and
-is printed, not graded. The guard outcome is graded on the after-guard list.
-On FAIL the model's raw list is printed beside the expected one.
+is printed. Ruled 2026-10-08: "what" must also pass what_clean (no digit,
+weekday, month or am/pm token). The guard outcome is graded on the
+after-guard list. On FAIL the model's raw list is printed beside the
+expected one. Every live run ends with d:1's "what", as the model wrote it
+and as graded (brief, 2026-10-09).
 
 A case may list target indices under "ungraded" (ruled 2026-10-06, case i:1).
 Live, an ungraded target still runs and prints UNGRADED with the model's list
@@ -36,7 +47,6 @@ Exit 0 only when every line passes.
 
 Usage: python3 imessage_fixtures.py [--live]
 """
-import re
 import contextlib
 import io
 import json
@@ -50,9 +60,25 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, REPO)
 
 import extract_imessage as xi                                    # noqa: E402
+from extract_imessage import apply_what_gate, what_clean           # noqa: E402
 
 FIXTURE = os.path.join(REPO, "fixtures", "imessage_fixtures.json")
 GRADED = ("type", "date", "time", "action_needed")
+
+# Offline gate checks (ruled 2026-10-09): input "what" -> expected "what"
+# (None = dropped). Every change prints a line; an unchanged title prints none.
+# "Lunch at 3 Oaks" -> "Lunch Oaks" is the accepted cost; the "Three Oaks"
+# spelling beside it is its record.
+GATE_CASES = (
+    ("Meeting on Thursday at 3", "Meeting"),
+    ("Thursday meeting", "Meeting"),
+    ("Lunch at 3 Oaks", "Lunch Oaks"),
+    ("Lunch at Three Oaks", "Lunch at Three Oaks"),
+    ("Thursday", None),
+)
+
+# Printed after every live run (brief, 2026-10-09).
+WATCH = ("d", "1")
 
 
 def provenance():
@@ -82,25 +108,16 @@ def guard(items, case, anchor_ts):
     return kept, buf.getvalue().splitlines()
 
 
+def gate(items):
+    """apply_what_gate with its log lines captured. Returns (kept, lines)."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        kept = apply_what_gate(items)
+    return kept, buf.getvalue().splitlines()
+
+
 def expected_after_guard(case, index, expected):
     return [] if case.get("after_guard", {}).get(index) == "drop" else expected
-
-
-WHAT_BANNED = frozenset(
-    "monday tuesday wednesday thursday friday saturday sunday "
-    "mon tue tues wed thu thur thurs fri sat sun "
-    "january february march april may june july august september october november december "
-    "jan feb mar apr jun jul aug sep sept oct nov dec am pm".split()
-)
-
-
-def what_clean(what):
-    """Ruled 2026-10-08: "what" names the activity only. Fails on any digit or any
-    whole-word weekday name, month name, or am/pm token (case-insensitive)."""
-    if any(ch.isdigit() for ch in what):
-        return False
-    tokens = re.findall(r"[a-z]+", what.lower())
-    return not any(t in WHAT_BANNED for t in tokens)
 
 
 def matches(got, expected):
@@ -151,58 +168,79 @@ def offline(cases):
                 detail += "".join(f" | {g}" for g in glog)
             all_ok &= ok
             lines.append(f"{tag} {'ok  ' if ok else 'FAIL'} {detail}")
+    for before, after in GATE_CASES:
+        kept, glog = gate([{"what": before}])
+        if after is None:
+            want_kept, want_log = [], [f"WHAT SANITIZED dropped before={before!r}"]
+        elif after == before:
+            want_kept, want_log = [{"what": before}], []
+        else:
+            want_kept = [{"what": after}]
+            want_log = [f"WHAT SANITIZED before={before!r} after={after!r}"]
+        ok = kept == want_kept and glog == want_log
+        all_ok &= ok
+        lines.append(f"offline (gate) {'ok  ' if ok else 'FAIL'} {before!r} -> "
+                     f"{_whats(kept)}" + "".join(f" | {g}" for g in glog))
     return lines, all_ok
 
 
 def live_one(tag, case, target, context, expected, index, ungraded=False):
-    """One billable call. Returns (lines, ok); ok is None when ungraded."""
+    """One billable call. Returns (lines, ok, whats); ok is None when ungraded,
+    whats is (model's, gated) or None on error. Order: gate, guard, grade."""
     try:
-        got = xi.extract_text_commitments(target["text"], target["sender"],
+        raw = xi.extract_text_commitments(target["text"], target["sender"],
                                           _ts(target), context)
     except Exception as exc:                      # report, never retry
         return [f"{tag} {'UNGRADED' if ungraded else 'FAIL'} error "
-                f"{type(exc).__name__}: {exc}"], (None if ungraded else False)
+                f"{type(exc).__name__}: {exc}"], (None if ungraded else False), None
+    got, wlog = gate(raw)
     kept, glog = guard(got, case, _ts(target))
+    whats = (_whats(raw), _whats(got))
+    glog = wlog + glog
     if ungraded:
         out = [f"{tag} UNGRADED what={_whats(got)}"]
         out += [f"  | {g}" for g in glog]
-        out.append(f"  model:    {json.dumps(got)}")
-        return out, None
+        out.append(f"  model:    {json.dumps(raw)}")
+        return out, None, whats
     want_kept = expected_after_guard(case, index, expected)
     ok = matches(got, expected) and matches(kept, want_kept)
     out = [f"{tag} {'PASS' if ok else 'FAIL'} what={_whats(got)}"]
     out += [f"  | {g}" for g in glog]
     if not ok:
-        out.append(f"  model:    {json.dumps(got)}")
+        out.append(f"  model:    {json.dumps(raw)}")
+        if got != raw:
+            out.append(f"  gated:    {json.dumps(got)}")
         out.append(f"  expected: {json.dumps(expected)}")
         if want_kept != expected:
             out.append(f"  after guard: got {json.dumps(kept)} expected {json.dumps(want_kept)}")
-    return out, ok
+    return out, ok, whats
 
 
 def live(cases):
-    """Result lines, all_ok, and (passed, graded, ungraded) counts."""
-    lines, results = [], []
+    """Result lines, all_ok, (passed, graded, ungraded) counts, and WATCH's whats."""
+    lines, results, watched = [], [], None
     for case in cases:
         for index, expected in case["targets"].items():
             if expected == "gate":
                 continue
             i = int(index)
-            out, ok = live_one(f"live ({case['id']}:{i})", case,
-                               case["messages"][i], case["messages"][:i],
-                               expected, index,
-                               ungraded=index in case.get("ungraded", []))
+            out, ok, whats = live_one(f"live ({case['id']}:{i})", case,
+                                      case["messages"][i], case["messages"][:i],
+                                      expected, index,
+                                      ungraded=index in case.get("ungraded", []))
             lines += out
             results.append(ok)
+            if (case["id"], index) == WATCH:
+                watched = whats
         if "extraction_negative" in case:
             target = case["messages"][0]
-            out, ok = live_one(f"live ({case['id']}:negative)", case, target, [],
-                               case["extraction_negative"], "negative")
+            out, ok, _ = live_one(f"live ({case['id']}:negative)", case, target, [],
+                                  case["extraction_negative"], "negative")
             lines += out
             results.append(ok)
     graded = [r for r in results if r is not None]
     counts = (sum(graded), len(graded), len(results) - len(graded))
-    return lines, all(graded), counts
+    return lines, all(graded), counts, watched
 
 
 def main():
@@ -213,13 +251,18 @@ def main():
     lines, ok = offline(cases)
     counts = None
     if is_live:
-        live_lines, live_ok, counts = live(cases)
+        live_lines, live_ok, counts, watched = live(cases)
         lines, ok = lines + live_lines, ok and live_ok
     for line in lines:
         print(line)
     print(f"\n{'ALL PASS' if ok else 'NOT ALL PASS'}")
     if counts:
         print(f"live: {counts[0]}/{counts[1]} graded, {counts[2]} ungraded")
+        tag = ":".join(WATCH)
+        if watched is None:
+            print(f"{tag} what: (no extraction - error)")
+        else:
+            print(f"{tag} what: model={watched[0]} graded={watched[1]}")
     sys.exit(0 if ok else 1)
 
 

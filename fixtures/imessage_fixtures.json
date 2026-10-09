@@ -633,6 +633,142 @@
    "targets": {
     "0": []
    }
+  },
+  {
+   "id": "l",
+   "desc": "clock-hour (2026-10-09): bare 8 with dinner reads as evening, 20:00",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-L-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T10:00:00",
+     "text": "dinner at 8 on Thursday?"
+    },
+    {
+     "guid": "FX-L-1",
+     "sender": "me",
+     "ts": "2026-10-05T10:02:00",
+     "text": "yes"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Dinner",
+      "date": "2026-10-08",
+      "time": "20:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "m",
+   "desc": "clock-hour (2026-10-09): bare 9 reads as morning, 09:00",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-M-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T10:00:00",
+     "text": "coffee at 9 Friday?"
+    },
+    {
+     "guid": "FX-M-1",
+     "sender": "me",
+     "ts": "2026-10-05T10:02:00",
+     "text": "sure"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Coffee",
+      "date": "2026-10-09",
+      "time": "09:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "n",
+   "desc": "clock-hour (2026-10-09): bare 6 reads as PM, 18:00",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-N-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T10:00:00",
+     "text": "call at 6 tomorrow?"
+    },
+    {
+     "guid": "FX-N-1",
+     "sender": "me",
+     "ts": "2026-10-05T10:02:00",
+     "text": "ok"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Call",
+      "date": "2026-10-06",
+      "time": "18:00",
+      "action_needed": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "o",
+   "desc": "clock-hour (2026-10-09): bare 7 with breakfast reads as morning, 07:00",
+   "allowlist": [
+    "+18135550101",
+    "+18135550102"
+   ],
+   "chat": "+18135550101",
+   "messages": [
+    {
+     "guid": "FX-O-0",
+     "sender": "+18135550101",
+     "ts": "2026-10-05T10:00:00",
+     "text": "breakfast at 7 Saturday?"
+    },
+    {
+     "guid": "FX-O-1",
+     "sender": "me",
+     "ts": "2026-10-05T10:02:00",
+     "text": "yep"
+    }
+   ],
+   "targets": {
+    "1": [
+     {
+      "type": "appointment",
+      "what": "Breakfast",
+      "date": "2026-10-10",
+      "time": "07:00",
+      "action_needed": null
+     }
+    ]
+   }
   }
  ]
 }

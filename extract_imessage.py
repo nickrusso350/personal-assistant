@@ -11,7 +11,8 @@ What is shared with extract.py, deliberately:
   - The call and the parse guard: load_env_file(), anthropic.Anthropic(),
     claude-sonnet-4-6, max_tokens 600, code-fence strip, JSON parse, bare
     object wrapped in a list.
-  - The field rules, verbatim.
+  - The field rules, verbatim, except the clock-hour convention appended to
+    the "time" rule (ruled 2026-10-09).
 
 What is the texts' own:
   - The anchor is the message's send time and weekday, never date.today().
@@ -34,9 +35,16 @@ apply_window_guard is the post-extraction guard: a resolved date outside
 [send day, send day + GUARD_DAYS] is dropped with an IMESSAGE GUARD line,
 never rendered. So is a null or unparseable date: a text commitment with no
 fixed date never renders (ruled 2026-10-05).
+
+apply_what_gate is the post-extraction title gate (ruled 2026-10-09): a
+"what" that fails what_clean has every banned token stripped, with the
+joiner word before it, and logs one WHAT SANITIZED line; a title left empty
+drops its item. Order is gate, then guard, in the harness and in production.
 """
 import anthropic
 import json
+import re
+import string
 from datetime import date, datetime
 
 from env_loader import load_env_file
@@ -105,7 +113,7 @@ Field rules:
     state. When in doubt, omit it from the array.
 - "what": a short description of the commitment. Name the activity only; never restate the date or time in it.
 - "date": the relevant date in YYYY-MM-DD format. If the message gives a date with no year, assume the next future occurrence of that date relative to today. If no date is present, use null.
-- "time": the time of day in 24-hour HH:MM format. If no time is present, use null.
+- "time": the time of day in 24-hour HH:MM format. If no time is present, use null. A bare hour with no am/pm reads as PM for 1–7, AM for 8–11, and noon for 12, unless the activity makes the other reading obvious ("breakfast at 7" is 07:00, "dinner at 8" is 20:00). When the hour cannot be resolved, "time" is null rather than a guess.
 - "action_needed": a concrete action the recipient is explicitly required to take. Default to null. Only fill this in if the message directly instructs the recipient to DO something. Do not infer, invent, or imply an action that the message does not explicitly state. The following are NOT actions: a phone number offered in case of questions, contact information, opt-out instructions, or any purely informational detail. Attending a scheduled appointment is captured by "type" and "what" — it is not an action_needed. If the message only informs, use null.
 
 For text messages, "you" and "the recipient" in the field rules mean the account owner ("me"), whichever direction the TARGET message was sent. The text-message rules above take precedence over the field rules: in particular, never return "reply_needed".
@@ -190,6 +198,67 @@ def extract_text_commitments(message, sender, anchor_ts, context):
     if isinstance(parsed, dict):
         parsed = [parsed]
     return parsed
+
+
+WHAT_BANNED = frozenset(
+    "monday tuesday wednesday thursday friday saturday sunday "
+    "mon tue tues wed thu thur thurs fri sat sun "
+    "january february march april may june july august september october november december "
+    "jan feb mar apr jun jul aug sep sept oct nov dec am pm".split()
+)
+
+# A banned token's joiner: stripped with it when it is the word immediately before.
+WHAT_JOINERS = frozenset("on at in this next for".split())
+
+
+def what_clean(what):
+    """Ruled 2026-10-08: "what" names the activity only. Fails on any digit or any
+    whole-word weekday name, month name, or am/pm token (case-insensitive)."""
+    if any(ch.isdigit() for ch in what):
+        return False
+    tokens = re.findall(r"[a-z]+", what.lower())
+    return not any(t in WHAT_BANNED for t in tokens)
+
+
+def _banned_word(word):
+    """A whitespace-delimited word is banned whole when it holds a digit (3pm,
+    15:00 and 3rd go entire, ruled 2026-10-09) or any banned letter run."""
+    return not what_clean(word)
+
+
+def apply_what_gate(parsed):
+    """Sanitize any "what" that fails what_clean (ruled 2026-10-09). Strip every
+    banned word and the joiner immediately before it, collapse whitespace, trim
+    leading/trailing punctuation, capitalize the first character. Each change
+    prints one WHAT SANITIZED line; an item whose title is left empty is
+    dropped with a WHAT SANITIZED dropped line. Returns the kept list.
+    Accepted cost (ruled 2026-10-09): "Lunch at 3 Oaks" becomes "Lunch Oaks"."""
+    kept = []
+    for item in parsed:
+        # Non-dict items, and dicts whose "what" is not a string, pass unchanged.
+        if not isinstance(item, dict) or not isinstance(item.get("what"), str):
+            kept.append(item)
+            continue
+        before = item["what"]
+        if what_clean(before):
+            kept.append(item)
+            continue
+        words = before.split()
+        drop = [False] * len(words)
+        for i, word in enumerate(words):
+            if _banned_word(word):
+                drop[i] = True
+                if i > 0 and words[i - 1].lower().strip(string.punctuation) in WHAT_JOINERS:
+                    drop[i - 1] = True
+        after = " ".join(w for w, d in zip(words, drop) if not d)
+        after = after.strip(string.punctuation + string.whitespace)
+        if not after:
+            print(f"WHAT SANITIZED dropped before={before!r}")
+            continue
+        after = after[0].upper() + after[1:]
+        print(f"WHAT SANITIZED before={before!r} after={after!r}")
+        kept.append({**item, "what": after})
+    return kept
 
 
 def apply_window_guard(parsed, anchor_ts, days=GUARD_DAYS):
