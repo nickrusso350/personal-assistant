@@ -269,3 +269,11 @@ Design only; nothing built. Summary: Session_Summary_2026-10-04.md.
 - Recorded, not fixed tonight: d:1's what restated "Thursday at 3" on 3 of 6 runs — a lapse against the ruled "activity only" rule. what titles every reminder (reminders_write.py:303) and leads every digest line (digest.py:248), and the text path inherits both at wiring, so this is graded before the wiring commit, not after. Candidate mechanism (unruled): a negative grade on what — no digits, weekday names, month names, or am/pm tokens — exact and bounded, since free-text exact match is not. First item of session three.
 - Commit evidence: three separate `--live` runs, 23/23 graded, 1 ungraded, exit 0, identical PASS line md5. Evidence: `~/Documents/Claude/personal_assistant_scratch/2026-10-06/live7_1–3.txt`.
 - i6 ("yes" + day-word + no time) reserved, unruled.
+
+## Rulings 2026-10-08 (iMessage build: decoder, ground truth, what-grade, K/T)
+
+- Ruled: message bodies are decoded from `message.attributedBody` (typedstream) by a minimal hand-written parser in the repo — no third-party dependency, no Swift/ObjC shell-out. The parser must handle the variable-width NSString length prefix. On any decode failure: `body=None`, one `digest.out` line carrying the guid, message skipped, morning delivers. Never a partial string.
+- Ruled: decoder ground truth is the set of recent rows holding both `text` and `attributedBody` (~172 on 10/07). The harness prints three counts only — matched / mismatched / skipped — and no bodies. Every skip must be explained by a nameable row type (attachment-only, tapback, empty). Any mismatch on a row with real text is a fail. Passing this gates wiring. Harness fixtures are self-authored blobs, never real ones.
+- Ruled: the `what` negative grade is a byte-level token check — `what` fails if it contains any digit, weekday name, month name, or am/pm token. Three runs, all graded `what` fields pass. One tightening sentence allowed, then three more runs; a second failure stops wiring. Runs before the wiring commit.
+- Ruled (provisional): K = 6 prior messages of chat context; T = 48-hour fetch window. Re-set after the first live mornings if reply pairs are being cut.
+- Schedule: 10/08 what-grade; 10/09 decoder committed proven-but-unwired; 10/10 fetch + wiring + kickstart-while-watching; 10/11 slack. Hard stop 10/13 (trip).
