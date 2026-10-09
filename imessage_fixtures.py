@@ -36,6 +36,7 @@ Exit 0 only when every line passes.
 
 Usage: python3 imessage_fixtures.py [--live]
 """
+import re
 import contextlib
 import io
 import json
@@ -85,8 +86,26 @@ def expected_after_guard(case, index, expected):
     return [] if case.get("after_guard", {}).get(index) == "drop" else expected
 
 
+WHAT_BANNED = frozenset(
+    "monday tuesday wednesday thursday friday saturday sunday "
+    "mon tue tues wed thu thur thurs fri sat sun "
+    "january february march april may june july august september october november december "
+    "jan feb mar apr jun jul aug sep sept oct nov dec am pm".split()
+)
+
+
+def what_clean(what):
+    """Ruled 2026-10-08: "what" names the activity only. Fails on any digit or any
+    whole-word weekday name, month name, or am/pm token (case-insensitive)."""
+    if any(ch.isdigit() for ch in what):
+        return False
+    tokens = re.findall(r"[a-z]+", what.lower())
+    return not any(t in WHAT_BANNED for t in tokens)
+
+
 def matches(got, expected):
-    """Ruled 2026-10-05: exact on GRADED keys, "what" non-empty, same length."""
+    """Ruled 2026-10-05: exact on GRADED keys, "what" non-empty, same length.
+    Ruled 2026-10-08: "what" must also pass what_clean (no digits/weekday/month/am-pm)."""
     if not isinstance(got, list) or len(got) != len(expected):
         return False
     for g, e in zip(got, expected):
@@ -95,6 +114,8 @@ def matches(got, expected):
         if any(g.get(k) != e[k] for k in GRADED):
             return False
         if not isinstance(g.get("what"), str) or not g["what"].strip():
+            return False
+        if not what_clean(g["what"]):
             return False
     return True
 
