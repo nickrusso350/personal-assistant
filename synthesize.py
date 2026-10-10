@@ -230,7 +230,7 @@ def build_records(events, attention, todo, appointments, today):
                 d = date.fromisoformat(c["date"])
             except ValueError:
                 d = None
-        add(kind, "gmail", ("commitment", c["id"]), d, c.get("time"), None,
+        add(kind, c.get("source", "gmail"), ("commitment", c["id"]), d, c.get("time"), None,
             None, c.get("what"), "", c.get("subject"))
 
     for c in attention:
@@ -619,7 +619,7 @@ def _primary_key(record, journey):
       (1) stored start zone present (non-empty string) over absent/None.
       (2) timed start over all-day: "time" carries a clock, the same
           presence test derive_conflicts uses for "carries a time".
-      (3) source == "calendar" over anything else ("gmail").
+      (3) source == "calendar" over anything else ("gmail", "imessage").
       (4) non-empty location over "" (build_records writes "" for none).
       (5) shortest summary by UTF-8 byte length.
       (6) lowest record id, compared as the str it is ("r1", "r2", ...).

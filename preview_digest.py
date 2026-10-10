@@ -13,7 +13,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from digest import build_digest, partition_commitments
+from digest import TEXT_UNAVAILABLE, build_digest, partition_commitments
 from synthesize import build_records, synthesize
 
 TODAY = date.today()
@@ -68,6 +68,10 @@ FIXTURES = [
     # 11 — rejected appointment -> still renders; no calendar event exists for it
     commitment("f11", "Rejected: optional team offsite", "appointment", iso(2),
                time="09:30", calendar={"status": "rejected"}),
+    # 12 — text-sourced appointment (wired 2026-10-10) -> COMING UP, "7:00 PM",
+    # carrying the [text] tag process_texts writes into what
+    commitment("imsg:fixture-guid-1:0", "[text] Dinner with Sam", "appointment", iso(3),
+               time="19:00", source="imessage", sender="them", subject=None),
 ]
 
 STATE = {"commitments": {c["id"]: c for c in FIXTURES}}
@@ -396,6 +400,10 @@ def main():
     print()
     title, compact_body = build_digest(STATE, EVENTS, today, compact_calendar=True)
     print(title + "\n\n" + compact_body)
+
+    print("\n=== corpus, text source unavailable (notes set) ===\n")
+    title, noted_body = build_digest(STATE, EVENTS, today, notes=(TEXT_UNAVAILABLE,))
+    print(title + "\n\n" + noted_body)
 
     if live:
         print("\n=== fixture 1 (LIVE — one synthesis API call) ===\n")

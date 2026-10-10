@@ -3,6 +3,8 @@ from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
 from fetch_calendar import fetch_upcoming_events, DEFAULT_TZ as HOME_TZ
 from extract import extract_commitments
+from extract_imessage import apply_what_gate, apply_window_guard, extract_text_commitments
+from fetch_imessage import IMessageFetchError, fetch_messages
 from reminders_write import reconcile, write_back
 from synthesize import build_records, filter_time_conflict, synthesize
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -11,6 +13,7 @@ from state import load_state, save_state, STATE_FILE
 QUERY = "newer_than:2d"
 MAX_RESULTS = 200
 HORIZON_DAYS = 7
+TEXT_UNAVAILABLE = "Text source unavailable this morning."
 
 def process_messages(messages, state, today):
     """Fold newly fetched messages into state["commitments"].
@@ -57,6 +60,71 @@ def process_messages(messages, state, today):
             record.update(commitment)
             record["subject"] = msg["subject"]
             record["sender"] = msg["sender"]
+            commitments[key] = record
+    return skipped, extracted, failed
+
+def process_texts(texts, state, today):
+    """Fold newly fetched text messages into state["commitments"]. Sibling of
+    process_messages (ruled 2026-10-04, wired 2026-10-10).
+
+    texts are fetch_imessage records. Mirrors process_messages: a record whose
+    "imsg:<guid>" is in processed_message_ids is skipped before extraction;
+    extraction, then apply_what_gate, then apply_window_guard against the
+    message's own send time (order ruled 2026-10-09); "imsg:<guid>" is
+    appended only after all three succeed, so a failure is retried next run.
+    Position is the item's index in the raw extraction output, exactly as in
+    process_messages (ruled 2026-10-10): gate and guard run per item, and a
+    survivor is keyed "imsg:<guid>:<position>" with its original index, so a
+    dropped item leaves a gap rather than renumbering the rest. Text keys sit
+    beside the gmail keys and never touch them.
+
+    Record fields that differ from mail (ruled 2026-10-10): what carries a
+    "[text] " prefix, which reaches state, the page and the reminder title;
+    source is "imessage", which build_records reads; sender is "me" or "them",
+    direction only, never the handle; subject is None.
+
+    Returns (skipped, extracted, failed), failed listing "imsg:<guid>" keys.
+    """
+    processed = state["processed_message_ids"]
+    commitments = state["commitments"]
+    skipped = 0
+    extracted = 0
+    failed = []
+    for text in texts:
+        seen_key = f"imsg:{text['guid']}"
+        if seen_key in processed:
+            skipped += 1
+            continue
+        try:
+            anchor = datetime.fromisoformat(text["ts"])
+            results = extract_text_commitments(text["text"], text["sender"],
+                                               anchor, text["context"])
+            survivors = []
+            for position, item in enumerate(results):
+                for kept in apply_window_guard(apply_what_gate([item]), anchor):
+                    survivors.append((position, kept))
+        except Exception:
+            # Leave the id out of processed_message_ids so a future run retries.
+            failed.append(seen_key)
+            continue
+        processed.append(seen_key)
+        extracted += 1
+        for position, commitment in survivors:
+            key = f"{seen_key}:{position}"
+            # Never overwrite an existing record — its status/dates are canonical.
+            if key in commitments:
+                continue
+            record = {
+                "id": key,
+                "status": "open",
+                "first_seen": today,
+                "resolved_on": None,
+            }
+            record.update(commitment)
+            record["what"] = "[text] " + (record.get("what") or "")
+            record["source"] = "imessage"
+            record["subject"] = None
+            record["sender"] = "me" if text["is_from_me"] else "them"
             commitments[key] = record
     return skipped, extracted, failed
 
@@ -814,7 +882,7 @@ def render_coming_up(merged, grouping=None):
     return lines
 
 def build_digest(state, events, today, compact_calendar=False, partition=None,
-                 grouping=None):
+                 grouping=None, notes=()):
     """Compose the digest as a (title, body) tuple, excluding the run summary.
 
     title is the header line; body is everything after it with no leading blank
@@ -835,7 +903,12 @@ def build_digest(state, events, today, compact_calendar=False, partition=None,
     builds it from synthesize(); groups None means the fallback path, with
     cause naming why. When None, the fallback renders with cause "off" — this
     function never calls the API, so preview_digest.py stays $0 unless it
-    passes a grouping it recorded live."""
+    passes a grouping it recorded live.
+
+    notes are statements about the run itself, such as TEXT_UNAVAILABLE when
+    the text source failed (ruled 2026-10-10, option 1). They render as the
+    first body lines, ahead of every section and on the nothing-needs-attention
+    morning too. Empty by default, which leaves every existing body unchanged."""
     d = parse_iso_date(today)
     title = f"Digest — {weekday_date(d)}"
     if partition is None:
@@ -856,10 +929,12 @@ def build_digest(state, events, today, compact_calendar=False, partition=None,
         cal_lines = render_coming_up(merged, grouping)
 
     if not attention_lines and not todo_lines and not cal_lines:
+        if notes:
+            return title, "\n".join(notes) + "\n\nNothing needs your attention today."
         return title, "Nothing needs your attention today."
 
     body_lines = []
-    for section in (attention_lines, todo_lines, cal_lines):
+    for section in (list(notes), attention_lines, todo_lines, cal_lines):
         if section:
             if body_lines:
                 body_lines.append("")
@@ -867,12 +942,23 @@ def build_digest(state, events, today, compact_calendar=False, partition=None,
     return title, "\n".join(body_lines)
 
 def fetch_inputs():
-    """Phase 1 — the only network in the run. Returns (messages, events)."""
+    """Phase 1 — every fetch in the run. Returns (messages, events, texts,
+    text_failed).
+
+    The text fetch runs last and degrades loudly (ruled 2026-10-04): on
+    IMessageFetchError it prints IMESSAGE FETCH FAILED with the errno, or the
+    message when there is none, returns no texts and text_failed True, and the
+    morning continues. On success fetch_messages prints its own summary line."""
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
     messages = fetch_recent_messages(service, QUERY, MAX_RESULTS)
     events = fetch_upcoming_events(HORIZON_DAYS)
-    return messages, events
+    try:
+        texts, text_failed = fetch_messages(), False
+    except IMessageFetchError as error:
+        print(f"IMESSAGE FETCH FAILED {error.errno if error.errno is not None else error}")
+        texts, text_failed = [], True
+    return messages, events, texts, text_failed
 
 def run_digest():
     """Run the full digest: fetch, extract, reconcile, partition, write back,
@@ -891,9 +977,10 @@ def run_digest():
 
     state = load_state(STATE_FILE)
 
-    messages, events = fetch_inputs()
+    messages, events, texts, text_failed = fetch_inputs()
 
     skipped, extracted, failed = process_messages(messages, state, today)
+    text_skipped, text_extracted, text_failures = process_texts(texts, state, today)
     save_state(state, STATE_FILE)
 
     reconcile(state)
@@ -911,8 +998,9 @@ def run_digest():
     }
     write_back(state, attention, todo, grouping=grouping)
 
+    notes = (TEXT_UNAVAILABLE,) if text_failed else ()
     title, full_body = build_digest(state, events, today, partition=partition,
-                                    grouping=grouping)
+                                    grouping=grouping, notes=notes)
     print(title + "\n\n" + full_body)
 
     open_total = sum(1 for c in state["commitments"].values() if c["status"] == "open")
@@ -923,6 +1011,12 @@ def run_digest():
     print(f"Extraction failures: {len(failed)}")
     for subj in failed:
         print(f"  - {subj}")
+    print(f"Texts fetched: {len(texts)}{' (text source unavailable)' if text_failed else ''}")
+    print(f"Texts skipped (already processed): {text_skipped}")
+    print(f"Texts newly extracted: {text_extracted}")
+    print(f"Text extraction failures: {len(text_failures)}")
+    for key in text_failures:
+        print(f"  - {key}")
     print(f"Total open in state: {open_total}")
 
     return title, full_body
