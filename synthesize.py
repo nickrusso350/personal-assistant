@@ -300,6 +300,15 @@ def _distinct_times(timed, by_id):
     and 18:30 America/Chicago by another rendered as "sources disagree."
     Unparseable zones fall back to clock comparison rather than raising -
     this is a display decision, not validation.
+
+    Ruled 2026-10-11: a zoned member presents two clocks to a zone-null
+    member - its stored-zone clock, and its instant converted to the
+    process-local zone (astimezone() with no argument; no zone is named
+    here). A zone-null clock from mail is usually written in the reader's
+    local zone, so a calendar event stored as 17:00 UTC and a gmail 13:00
+    are one time on an Eastern machine. Zone-null vs zone-null and zoned vs
+    zoned are unchanged; render
+    zones never enter this count (ruled 2026-09-24).
     """
     instants, zoned_clocks, bare_clocks = set(), set(), set()
     for m in timed:
@@ -314,6 +323,7 @@ def _distinct_times(timed, by_id):
                                  tzinfo=ZoneInfo(zone))
                 instants.add(local.astimezone(timezone.utc))
                 zoned_clocks.add(clock)
+                zoned_clocks.add(local.astimezone().strftime("%H:%M"))
                 continue
             except (ValueError, KeyError, AttributeError):
                 pass

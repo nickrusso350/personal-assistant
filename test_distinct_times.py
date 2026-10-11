@@ -7,11 +7,18 @@ clock and otherwise counts as distinct. _distinct_times is the single helper
 behind derive_conflicts and filter_time_conflict, so every case asserts the
 helper's count AND both consumers' output - they cannot drift apart unseen.
 
-The four cases are the ones 1cc90a4 was verified against ("synthetic fixture
+Cases a-d are the ones 1cc90a4 was verified against ("synthetic fixture
 (4 cases)"). That script was not retained; these records are rebuilt from the
 case descriptions recorded at the ruling. The date is fixed, not relative to
 today, because the offsets under test depend on it: on 2026-09-14 New York and
 Chicago are both on daylight time, so 19:30 in one is 18:30 in the other.
+
+Cases e-h cover the 2026-10-11 ruling: a zoned member also presents its clock
+converted to the process-local zone, so a zone-null clock matching that
+presentation agrees. The helper reads the local zone from the interpreter
+(astimezone() with no argument), so main() pins it - TZ=America/New_York and
+time.tzset(), restored in a finally - for every case, a-d included. The result
+does not depend on the machine the test runs on.
 
 No I/O beyond the provenance header, no network, no state file access.
 Importing synthesize imports the anthropic SDK; nothing here calls it.
@@ -22,12 +29,15 @@ Run: python3 test_distinct_times.py
 import os
 import socket
 import subprocess
+import time
 
 from synthesize import _distinct_times, derive_conflicts, filter_time_conflict
 
 DAY = "2026-09-14"
 NY = "America/New_York"
 CHI = "America/Chicago"
+UTC = "UTC"
+PROCESS_LOCAL = NY   # pinned in main(); 17:00 UTC is 13:00 EDT on DAY
 
 
 def provenance():
@@ -119,6 +129,48 @@ def test_d_all_day_only():
     print("  OK — d: all-day only -> no times counted, no conflict")
 
 
+def test_e_bare_clock_matches_process_local_presentation():
+    """The 2026-10-10 specimen's agreeing pair: a calendar event stored as
+    17:00 UTC and a gmail 13:00 with no zone. 17:00 UTC is 13:00 in the pinned
+    process-local zone, so they are one time (ruled 2026-10-11)."""
+    by_id = {
+        "r4": record("17:00", UTC),
+        "r6": record("13:00", None),
+    }
+    check(by_id, 1)
+    print("  OK — e: 17:00 UTC / bare 13:00, local ET -> one time, no conflict")
+
+
+def test_f_bare_clock_matches_neither_presentation():
+    """The specimen's disagreeing pair: 08:30 is neither 17:00 (stored) nor
+    13:00 (process-local), so it stays its own time."""
+    by_id = {
+        "r4": record("17:00", UTC),
+        "r8": record("08:30", None),
+    }
+    check(by_id, 2)
+    print("  OK — f: 17:00 UTC / bare 08:30, local ET -> two times, conflict")
+
+
+def test_g_stored_zone_is_process_local():
+    """Stored zone equal to the process-local zone: both presentations are
+    13:00, and the bare 13:00 agrees as it did before the ruling."""
+    by_id = {
+        "r1": record("13:00", NY),
+        "r2": record("13:00", None),
+    }
+    check(by_id, 1)
+    print("  OK — g: 13:00 ET / bare 13:00, local ET -> one time, no conflict")
+
+
+def test_h_bare_clocks_only():
+    """Zone-null against zone-null is unchanged: string comparison."""
+    check({"r1": record("13:00", None), "r2": record("13:00", None)}, 1)
+    print("  OK — h: bare 13:00 / bare 13:00 -> one time, no conflict")
+    check({"r1": record("13:00", None), "r2": record("13:30", None)}, 2)
+    print("  OK — h: bare 13:00 / bare 13:30 -> two times, conflict")
+
+
 def main():
     provenance()
     tests = [
@@ -126,10 +178,24 @@ def main():
         ("b. real disagreement in one zone", test_b_real_disagreement_in_one_zone),
         ("c. bare clock matching nothing", test_c_bare_clock_matching_nothing),
         ("d. all-day only", test_d_all_day_only),
+        ("e. bare clock matches the process-local presentation", test_e_bare_clock_matches_process_local_presentation),
+        ("f. bare clock matches neither presentation", test_f_bare_clock_matches_neither_presentation),
+        ("g. stored zone is the process-local zone", test_g_stored_zone_is_process_local),
+        ("h. bare clocks only", test_h_bare_clocks_only),
     ]
-    for name, test in tests:
-        print(name)
-        test()
+    saved = os.environ.get("TZ")
+    os.environ["TZ"] = PROCESS_LOCAL
+    time.tzset()
+    try:
+        for name, test in tests:
+            print(name)
+            test()
+    finally:
+        if saved is None:
+            del os.environ["TZ"]
+        else:
+            os.environ["TZ"] = saved
+        time.tzset()
     print("\nAll checks passed.")
 
 
