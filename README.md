@@ -129,10 +129,8 @@ The production run has no compact render. A digest too long for one Pushover mes
 | | `replay_mornings.py` | re-runs recorded mornings through the current contract and compares membership as `ref`-sets; one API call per morning, touches no state. Opens with a provenance header. The first draft of the backlogged `SYNTHESIS DRIFT` tripwire |
 | | `probe_calendar.py` | calendar data-surface probe; retained because the timezone work (below) starts with it. Carries its own `SCOPES` and rewrites `token.json`, so it is never run casually |
 | | `probe_chatdb.py` | Full Disk Access proof under the scheduled path, plus a `chat.db` schema read on a scratch copy outside the repo. Proves anything only as a one-shot LaunchAgent; a Terminal pass inherits Terminal's grants |
-| **Mothballed** | `calendar_write.py`, `approve.py` | the killed write path — retained unwired; its decision records still feed a rendering rule, and the design reasoning is banked for any future write feature |
-| | `send_imessage.py` | retired delivery path |
 
-Mothballed files are kept deliberately: they carry the reasoning that killed them, and deleting them would delete the evidence.
+The mothballed write path was kept in the tree through 2026-10-12 as evidence of the design turn, and removed that day: a working calendar write sitting in a read-only codebase is a standing temptation to a future reader. History keeps the files; the reasoning that killed them is under *Read-only, with one sanctioned exception* above. One trace outlives the writer: `digest.py` still skips an appointment whose record carries `calendar.status == "approved"`, leaving it to the calendar fetch to surface, because records `approve.py` wrote into `state.json` before the write path was killed may still be there. That branch reads data, not the deleted module, and stays.
 
 ---
 
