@@ -252,42 +252,61 @@ def _fold(items, ref_of, ref_to_group, by_rid, display_primary=None):
 
 def _conflict_text(group, by_rid):
     """Render a group's conflicts from the MEMBERS' real values — the model
-    named the field, it never picked a winner. Times carry a zone abbreviation
-    when the record's zone is known and not HOME_TZ.
+    named the field, it never picked a winner.
 
     Conflicts are code-derived (ruled 2026-09-04): synthesize.derive_conflicts
     computes them from the records after validation, and time is the only
     field it emits — the model is no longer asked, because conflicts were the
-    one axis that moved between otherwise identical live runs. Rendering is
-    unchanged; the location/date/summary branches below are reachable only for
-    a grouping built elsewhere.
+    one axis that moved between otherwise identical live runs. The
+    location/date/summary branches below are reachable only for a grouping
+    built elsewhere.
 
     Guard (ruled 2026-09-04): an all-day record has no time to disagree with.
     filter_time_conflict narrows a time conflict to the members that carry a
     time and drops it when fewer than two distinct times remain. The derivation
     satisfies that by construction, so this call is defending a grouping that
-    did not come through validate() — a fixture recorded before the ruling."""
+    did not come through validate() — a fixture recorded before the ruling.
+
+    Time lists dissenters only (ruled 2026-10-18). One rule: the distinct
+    process-local clocks (local_clock, below) of the timed members, compared as
+    "%H:%M" strings; the primary's own clock removed when the primary
+    (group["primary"], the selector's pick) is timed. That renders when
+    anything is left behind a timed primary, or two or more clocks remain
+    behind an untimed one; otherwise the time conflict renders nothing.
+    Dissenters sort by clock ascending and display bare via format_time.
+    The 10/13 Owners Update line listed the primary's own 8:30 AM beside
+    the 1:00 PM that disagreed with it. Returns None when nothing renders."""
+    def local_clock(record):
+        """A timed record's clock as "%H:%M" in the process-local zone.
+
+        Ruled 2026-10-18: a zoned member converts with astimezone() and no
+        argument - no zone is named here, and render_zone stays out. A zone-null
+        member's stored clock is already a local clock and passes through as
+        stored, as does a zoned one whose instant does not rebuild."""
+        inst = _record_instant(record, "time", "zone")
+        return inst.astimezone().strftime("%H:%M") if inst else record["time"]
+
     parts = []
     for raw in group["conflicts"]:
         c = filter_time_conflict(raw, by_rid)
         if c is None:
             continue
+        if c["field"] == "time":
+            clocks = {local_clock(by_rid[m]) for m in c["members"]}
+            primary = by_rid[group["primary"]]
+            if primary.get("time"):
+                clocks.discard(local_clock(primary))
+                floor = 1
+            else:
+                floor = 2
+            if len(clocks) >= floor:
+                parts.append("time: " + " / ".join(
+                    format_time(v) for v in sorted(clocks)))
+            continue
         values = []
         for m in c["members"]:
             r = by_rid[m]
-            if c["field"] == "time":
-                v = format_time(r.get("time")) or "all day"
-                zone = r.get("zone")
-                if zone and zone != HOME_TZ and r.get("time") and r.get("date"):
-                    try:
-                        inst = datetime.combine(
-                            date.fromisoformat(r["date"]),
-                            datetime.strptime(r["time"], "%H:%M").time(),
-                            tzinfo=ZoneInfo(zone))
-                        v += " " + inst.strftime("%Z")
-                    except (ValueError, KeyError):
-                        pass
-            elif c["field"] == "location":
+            if c["field"] == "location":
                 v = (r.get("location") or "none")[:40]
             elif c["field"] == "date":
                 v = format_date(r.get("date"))
@@ -299,7 +318,7 @@ def _conflict_text(group, by_rid):
             parts.append(f"{c['field']}: " + " / ".join(values))
         else:
             parts.append(c["field"])
-    return "(sources disagree on " + "; ".join(parts) + ")" if parts else ""
+    return "(sources disagree on " + "; ".join(parts) + ")" if parts else None
 
 
 def render_attention(items, grouping=None):
@@ -702,8 +721,8 @@ def _is_journey(group, by_rid):
 
 def _record_instant(record, clock_key, zone_key):
     """A record's clock as an instant, or None when the pair is absent or
-    unparseable. Rebuilt from date + clock + ZoneInfo(zone), the way
-    _conflict_text rebuilds one to resolve an abbreviation. Never raises: a
+    unparseable. Rebuilt from date + clock + ZoneInfo(zone); _conflict_text
+    converts its zoned members through it (ruled 2026-10-18). Never raises: a
     display decision, not validation."""
     clock = record.get(clock_key)
     zone = record.get(zone_key)

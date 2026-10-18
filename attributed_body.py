@@ -3,7 +3,8 @@
 Written 2026-10-09 for the iMessage-as-source build. Ruled 2026-10-08: bodies
 are decoded from `attributedBody` (typedstream) by a minimal hand-written
 parser in the repo - no third-party dependency, no Swift/ObjC shell-out.
-Stdlib only. NOT on the 07:00 path until the fetch stage is wired by ruling.
+Stdlib only.
+On the 07:00 path since 6d2c733 (2026-10-10).
 
 Why: most bodies are not in `message.text`. On 2026-10-07, 1,015 of 1,187
 messages in the prior 30 days had `text` NULL; the body lives only here.

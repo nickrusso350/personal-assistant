@@ -1,8 +1,8 @@
 """Fetch recent text messages from allowlisted chats. Read-only by construction.
 
 Written 2026-10-10 to the iMessage-as-source rulings (2026-10-04, 2026-10-08,
-2026-10-10). NOT on the 07:00 path: nothing the scheduled run imports imports
-this module until the wiring step is ruled and proven.
+2026-10-10).
+On the 07:00 path since 6d2c733 (2026-10-10).
 
 Read-only boundary (ruled 2026-10-04). The live database is never opened.
 chat.db and its -wal and -shm sidecars are copied from ~/Library/Messages into

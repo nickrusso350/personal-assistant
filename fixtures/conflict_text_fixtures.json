@@ -1,0 +1,354 @@
+{
+ "about": "Conflict-text fixtures for the dissenters-only ruling (2026-10-18). Self-authored; no real mail, calendar or text. Unit cases a-g are groups in the shape validate() returns, with records reduced to the fields _conflict_text reads (id, date, time, zone); each case's conflicts list is written out in the raw shape derive_conflicts emits and goes through filter_time_conflict like a recorded grouping would. Case c is the 10/13 Owners Update specimen rebuilt from the clocks on record (r4 08:30 America/New_York primary, r6 13:00 zone-null, r8 08:30 zone-null), with no summaries. The render case is one calendar event plus one gmail appointment in the events-and-state shape test_render_zone.py uses, run through build_digest. Process-local is pinned to America/New_York by the test. Expected values were pinned from a captured run, never typed before it; null means _conflict_text returned None.",
+ "day": "2026-10-15",
+ "cases": [
+  {
+   "case": "a",
+   "why": "Zoned vs zone-null, agree after conversion: 17:00 UTC is 13:00 EDT. The None comes from filter_time_conflict narrowing the conflict away before the dissenters-only rule runs; synthesis firing a conflict that then has zero dissenters is unreachable with well-formed clocks.",
+   "records": [
+    {
+     "id": "a1",
+     "date": "2026-10-15",
+     "time": "17:00",
+     "zone": "UTC"
+    },
+    {
+     "id": "a2",
+     "date": "2026-10-15",
+     "time": "13:00",
+     "zone": null
+    }
+   ],
+   "group": {
+    "members": [
+     "a1",
+     "a2"
+    ],
+    "primary": "a1",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "a1",
+       "a2"
+      ]
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "case": "b",
+   "why": "Zoned vs zone-null, dissent: zone-null primary 13:00; 17:00 America/Chicago is 18:00 local, shown bare.",
+   "records": [
+    {
+     "id": "b1",
+     "date": "2026-10-15",
+     "time": "13:00",
+     "zone": null
+    },
+    {
+     "id": "b2",
+     "date": "2026-10-15",
+     "time": "17:00",
+     "zone": "America/Chicago"
+    }
+   ],
+   "group": {
+    "members": [
+     "b1",
+     "b2"
+    ],
+    "primary": "b1",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "b1",
+       "b2"
+      ]
+     }
+    ]
+   },
+   "expected": "(sources disagree on time: 6:00 PM)"
+  },
+  {
+   "case": "c",
+   "why": "The 10/13 specimen: the primary's own 8:30 AM must not be listed; r8 agrees with it.",
+   "records": [
+    {
+     "id": "r4",
+     "date": "2026-10-15",
+     "time": "08:30",
+     "zone": "America/New_York"
+    },
+    {
+     "id": "r6",
+     "date": "2026-10-15",
+     "time": "13:00",
+     "zone": null
+    },
+    {
+     "id": "r8",
+     "date": "2026-10-15",
+     "time": "08:30",
+     "zone": null
+    }
+   ],
+   "group": {
+    "members": [
+     "r4",
+     "r6",
+     "r8"
+    ],
+    "primary": "r4",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "r4",
+       "r6",
+       "r8"
+      ]
+     }
+    ]
+   },
+   "expected": "(sources disagree on time: 1:00 PM)"
+  },
+  {
+   "case": "d",
+   "why": "Two dissenters in member order 15:00 then 11:00; listed ascending.",
+   "records": [
+    {
+     "id": "d1",
+     "date": "2026-10-15",
+     "time": "09:00",
+     "zone": null
+    },
+    {
+     "id": "d2",
+     "date": "2026-10-15",
+     "time": "15:00",
+     "zone": null
+    },
+    {
+     "id": "d3",
+     "date": "2026-10-15",
+     "time": "11:00",
+     "zone": null
+    }
+   ],
+   "group": {
+    "members": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "primary": "d1",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "d1",
+       "d2",
+       "d3"
+      ]
+     }
+    ]
+   },
+   "expected": "(sources disagree on time: 11:00 AM / 3:00 PM)"
+  },
+  {
+   "case": "e",
+   "why": "All-day primary, two distinct timed members: both listed.",
+   "records": [
+    {
+     "id": "e1",
+     "date": "2026-10-15",
+     "time": null,
+     "zone": null
+    },
+    {
+     "id": "e2",
+     "date": "2026-10-15",
+     "time": "14:00",
+     "zone": null
+    },
+    {
+     "id": "e3",
+     "date": "2026-10-15",
+     "time": "10:00",
+     "zone": null
+    }
+   ],
+   "group": {
+    "members": [
+     "e1",
+     "e2",
+     "e3"
+    ],
+    "primary": "e1",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "e1",
+       "e2",
+       "e3"
+      ]
+     }
+    ]
+   },
+   "expected": "(sources disagree on time: 10:00 AM / 2:00 PM)"
+  },
+  {
+   "case": "f",
+   "why": "All-day primary, one timed member: nothing (known hole, matches _distinct_times). The None comes from filter_time_conflict narrowing the conflict away before the dissenters-only rule runs; synthesis firing a conflict that then has zero dissenters is unreachable with well-formed clocks.",
+   "records": [
+    {
+     "id": "f1",
+     "date": "2026-10-15",
+     "time": null,
+     "zone": null
+    },
+    {
+     "id": "f2",
+     "date": "2026-10-15",
+     "time": "14:00",
+     "zone": null
+    }
+   ],
+   "group": {
+    "members": [
+     "f1",
+     "f2"
+    ],
+    "primary": "f1",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "f1",
+       "f2"
+      ]
+     }
+    ]
+   },
+   "expected": null
+  },
+  {
+   "case": "g",
+   "why": "Stored zone equals process-local: the dissenter's clock is its stored clock, bare, no label.",
+   "records": [
+    {
+     "id": "g1",
+     "date": "2026-10-15",
+     "time": "13:00",
+     "zone": null
+    },
+    {
+     "id": "g2",
+     "date": "2026-10-15",
+     "time": "09:00",
+     "zone": "America/New_York"
+    }
+   ],
+   "group": {
+    "members": [
+     "g1",
+     "g2"
+    ],
+    "primary": "g1",
+    "conflicts": [
+     {
+      "field": "time",
+      "members": [
+       "g1",
+       "g2"
+      ]
+     }
+    ]
+   },
+   "expected": "(sources disagree on time: 9:00 AM)"
+  }
+ ],
+ "render": {
+  "case": "render",
+  "why": "The call site still appends: a calendar primary at 08:30 local and a gmail copy at 13:00 render one line carrying the dissenter only.",
+  "tag": "(case render)",
+  "today": "2026-10-14",
+  "events": [
+   {
+    "id": "ev_render",
+    "summary": "Quarterly review (case render)",
+    "all_day": false,
+    "start": [
+     "2026-10-15",
+     "08:30",
+     "America/New_York"
+    ],
+    "end": [
+     "2026-10-15",
+     "10:00",
+     "America/New_York"
+    ]
+   }
+  ],
+  "commitments": [
+   {
+    "id": "c_render",
+    "status": "open",
+    "type": "appointment",
+    "what": "Quarterly review (case render)",
+    "date": "2026-10-15",
+    "time": "13:00"
+   }
+  ],
+  "records": [
+   {
+    "id": "r1",
+    "ref": [
+     "event",
+     "ev_render",
+     "single"
+    ],
+    "identifiers": [],
+    "date": "2026-10-15",
+    "time": "08:30",
+    "zone": "America/New_York"
+   },
+   {
+    "id": "r2",
+    "ref": [
+     "commitment",
+     "c_render"
+    ],
+    "identifiers": [],
+    "date": "2026-10-15",
+    "time": "13:00",
+    "zone": null
+   }
+  ],
+  "group": {
+   "members": [
+    "r1",
+    "r2"
+   ],
+   "primary": "r1",
+   "container": null,
+   "conflicts": [
+    {
+     "field": "time",
+     "members": [
+      "r1",
+      "r2"
+     ]
+    }
+   ]
+  },
+  "expected": {
+   "header": "Thu, Oct 15",
+   "line": "• 8:30–10:00 AM — Quarterly review (case render) (sources disagree on time: 1:00 PM)"
+  }
+ }
+}

@@ -309,3 +309,15 @@ Design only; nothing built. Summary: Session_Summary_2026-10-04.md.
 - Ruled: the `_conflict_text` fix (dissenters only; zoned member converted to local) is the first build item after the 10/13 trip, not before — `digest.py` edits need two watched mornings.
 - Live proof pending: the 10/13 07:00 Owners Update line. Loose ends: the check-in event description still says "1:00 PM"; other events from that path still carry UTC labels; `fetch_imessage.py` and `attributed_body.py` docstrings still say "NOT on the 07:00 path" (first post-trip code commit); one slow run 10/12 (65 s vs 25–34 s), one data point.
 - Tree hygiene (closes the 10/04 'logged, not ruled' item): `send_imessage.py`, `calendar_write.py` and `approve.py` removed — the killed write path and the retired delivery path. No live import, proven by grep before removal; history keeps them.
+
+## Rulings 2026-10-18 (`_conflict_text` — dissenters only)
+- The parenthetical lists dissenters only — members whose clock differs from the primary's — never the primary's own time.
+- A zoned member's clock is converted to process-local via `astimezone()` with no argument and displayed bare; no hard-coded zone; `render_zone` stays out.
+- Comparison is on `"%H:%M"` strings; display is via `format_time`.
+- The primary is `g["primary"]` — the selector's pick. The tiebreak-(b) display swap (`digest.py:244`) is dead and not consulted.
+- One rule covers every case: take the set of distinct converted clocks of the timed members; remove the primary's own clock if the primary is timed; render if the set is non-empty (timed primary) or holds two or more (untimed primary); otherwise render nothing.
+- Dissenters are sorted by clock ascending.
+- `CONFLICT EMPTY <primary id>` (a stdout line when synthesis fired a conflict and the renderer found zero dissenters) was proposed and withdrawn the same day: the 9/21 "never print unconditionally" rule and the 9/27 no-renderer-tripwire ruling both apply. The case it would have flagged — synthesis fired a conflict, zero dissenters — is unreachable with well-formed clocks; fixture cases a and f pin a `None` result, which comes from `filter_time_conflict` narrowing the conflict away before the dissenters-only rule runs.
+- `synthesize.py` untouched. Tests live in a sibling `test_conflict_text.py` on `fixtures/conflict_text_fixtures.json`, TZ pinned as `test_distinct_times.py` does.
+- Known hole: an all-day primary beside one timed member renders nothing (matches `_distinct_times`, which counts one time).
+- Known hole: the process-local = `HOME_TZ` assumption carries; a mini running in another zone converts into that zone.
