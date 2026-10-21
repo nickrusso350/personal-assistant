@@ -86,17 +86,36 @@ def fetch_one_message(service, query):
     return message["payload"]
 
 
-def fetch_recent_messages(service, query, max_results=200):
-    """Return a list of recent messages matching the query.
+PROMOTIONS = "CATEGORY_PROMOTIONS"
 
-    Each item is a dict: {"subject", "sender", "body", "id"}.
+
+def is_promotion(message):
+    """True when the message's Gmail labelIds carry CATEGORY_PROMOTIONS.
+
+    Ruled 2026-10-20: a scope boundary on what the assistant reads, same
+    class as the iMessage allowlist (2026-10-04), not a suppression. Exact
+    string membership. Gmail omits keys it has nothing for, so labelIds may
+    be absent; absent is not a promotion."""
+    return PROMOTIONS in message.get("labelIds", [])
+
+
+def fetch_recent_messages(service, query, max_results=200):
+    """Return (messages, skipped) for recent messages matching the query.
+
+    Each item of messages is a dict: {"subject", "sender", "body", "id"}.
     An unreadable message gets body=None instead of killing the run.
-    Returns an empty list if nothing matches.
+    messages is an empty list if nothing matches.
+
+    skipped counts messages dropped by is_promotion (ruled 2026-10-20). The
+    skip runs after the full get and before the record is shaped, so a
+    promotion still costs one API read but never reaches extraction. This
+    function does not report the count; the caller prints it (CLAUDE.md:
+    a library function must never print unconditionally).
 
     max_results is a TOTAL ceiling across all fetched pages, not a page
-    size. If the ceiling is hit, the list is truncated to exactly
-    max_results and a WARNING is printed noting older matching messages
-    were not fetched.
+    size, and counts promotions before they are skipped. If the ceiling is
+    hit, the list is truncated to exactly max_results and a WARNING is
+    printed noting older matching messages were not fetched.
     """
     found = []
     page_token = None
@@ -114,10 +133,14 @@ def fetch_recent_messages(service, query, max_results=200):
             break
 
     messages = []
+    skipped = 0
     for item in found:
         message = service.users().messages().get(
             userId="me", id=item["id"], format="full"
         ).execute()
+        if is_promotion(message):
+            skipped += 1
+            continue
         payload = message["payload"]
         try:
             body = extract_body(payload)
@@ -129,14 +152,14 @@ def fetch_recent_messages(service, query, max_results=200):
             "body": body,
             "id": item["id"],
         })
-    return messages
+    return messages, skipped
 
 
 if __name__ == "__main__":
     query = input("Gmail search query: ").strip()
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
-    messages = fetch_recent_messages(service, query)
+    messages, skipped = fetch_recent_messages(service, query)
 
     print(f"----- FOUND {len(messages)} MESSAGE(S) -----")
     for i, msg in enumerate(messages, 1):

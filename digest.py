@@ -967,10 +967,15 @@ def fetch_inputs():
     The text fetch runs last and degrades loudly (ruled 2026-10-04): on
     IMessageFetchError it prints IMESSAGE FETCH FAILED with the errno, or the
     message when there is none, returns no texts and text_failed True, and the
-    morning continues. On success fetch_messages prints its own summary line."""
+    morning continues. On success fetch_messages prints its own summary line.
+
+    The mail fetch skips promotions (ruled 2026-10-20) and this function prints
+    the GMAIL FETCH line with the kept and skipped counts, zero included: it is
+    the instrument, so it prints on every run that reaches it."""
     creds = get_credentials()
     service = build("gmail", "v1", credentials=creds)
-    messages = fetch_recent_messages(service, QUERY, MAX_RESULTS)
+    messages, skipped = fetch_recent_messages(service, QUERY, MAX_RESULTS)
+    print(f"GMAIL FETCH {len(messages)} kept, {skipped} skipped (promotions)")
     events = fetch_upcoming_events(HORIZON_DAYS)
     try:
         texts, text_failed = fetch_messages(), False

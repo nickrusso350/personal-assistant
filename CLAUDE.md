@@ -321,3 +321,24 @@ Design only; nothing built. Summary: Session_Summary_2026-10-04.md.
 - `synthesize.py` untouched. Tests live in a sibling `test_conflict_text.py` on `fixtures/conflict_text_fixtures.json`, TZ pinned as `test_distinct_times.py` does.
 - Known hole: an all-day primary beside one timed member renders nothing (matches `_distinct_times`, which counts one time).
 - Known hole: the process-local = `HOME_TZ` assumption carries; a mini running in another zone converts into that zone.
+
+## Rulings 2026-10-20 (promotions boundary at the fetch stage)
+- Messages whose Gmail labelIds carry CATEGORY_PROMOTIONS are skipped at the
+  fetch stage, before extraction. One line per run in digest.out carries the
+  fetched and skipped counts. This is a scope boundary on what the assistant
+  reads (same class as the iMessage allowlist, 10/04), not a suppression.
+- Candidate falsified on the state corpus (83 records / 53 messages): a
+  List-Unsubscribe header boundary. Four real obligations carry the header
+  (a vet appointment, a settlement claim, a Marriott check-in and check-out).
+  The category separates the corpus 4/4 promos vs 0 real.
+- Parked behind a trigger: a sender deny-list; trigger is the first promo
+  reaching the page from a non-Promotions category.
+- Correction to the 9/24 record: the Etsy Up record that "confirmed" Ruling 0's
+  reasoning came from the same Etsy Sellers newsletter (CATEGORY_PROMOTIONS) and
+  was a promo, not a booking. Ruling 0 stands; its live confirmation is
+  withdrawn. The four Etsy records already in state keep their identity.
+- Second instance of the 9/24 self-sent-mail class (a .mil → Gmail forward);
+  Nick accepts it as a traceable wart; ruling unchanged.
+- Return shape (ruled the same day): `fetch_recent_messages` returns `(messages, skipped)`, `skipped` the count dropped by `is_promotion`. The print lives in `fetch_inputs` in `digest.py`, unconditional on that path: `GMAIL FETCH {n} kept, {k} skipped (promotions)`, where `{n}` counts kept messages and kept + skipped = fetched (ruled 2026-10-20). Both call sites (`digest.py` `fetch_inputs`, `fetch_gmail.py` `__main__`) unpack the tuple. Proof: `test_fetch_skip.py` on `fixtures/fetch_skip_fixtures.json`, stub service, no network. The `__main__` `FOUND` line is unchanged.
+- Accepted wart: promotions count toward `MAX_RESULTS` before being skipped, so a promotions-heavy window reaches the ceiling sooner. The existing fetch-ceiling `WARNING` is the tripwire.
+- Wart on record against the "a library function must never print unconditionally" rule: `fetch_imessage.fetch_messages` prints its own `IMESSAGE FETCH` success line inside the library (shipped 10/10, `6d2c733`). Not edited in this build. Fix place: a follow-up commit moving that print to `fetch_inputs` by this same tuple shape.

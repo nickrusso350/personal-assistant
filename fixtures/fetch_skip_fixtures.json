@@ -1,0 +1,263 @@
+{
+ "about": "Fetch-skip fixtures for the promotions boundary (ruled 2026-10-20). Self-authored; no real mail. Messages are in the Gmail API format=full shape, reduced to id, labelIds and a text/plain payload with Subject and From; the sender is example.invalid. Unit cases call is_promotion on one message. The mixed case runs every message in 'messages' through fetch_recent_messages via a stub service (no network): list returns the ids in order on one page, get returns the message by id. Expected values were pinned from a captured run, never typed before it.",
+ "unit": [
+  {
+   "case": "u1",
+   "why": "labelIds carries CATEGORY_PROMOTIONS beside INBOX.",
+   "message": {
+    "id": "u1",
+    "labelIds": [
+     "INBOX",
+     "CATEGORY_PROMOTIONS"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture u1"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "cHJvbW8gYm9keQ=="
+     }
+    }
+   },
+   "expected": true
+  },
+  {
+   "case": "u2",
+   "why": "labelIds carries another category, not promotions.",
+   "message": {
+    "id": "u2",
+    "labelIds": [
+     "INBOX",
+     "CATEGORY_PERSONAL"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture u2"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "cGVyc29uYWwgYm9keQ=="
+     }
+    }
+   },
+   "expected": false
+  },
+  {
+   "case": "u3",
+   "why": "labelIds key absent (Gmail omits keys it has nothing for).",
+   "message": {
+    "id": "u3",
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture u3"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "bm8gbGFiZWxzIGJvZHk="
+     }
+    }
+   },
+   "expected": false
+  },
+  {
+   "case": "u4",
+   "why": "labelIds present and empty.",
+   "message": {
+    "id": "u4",
+    "labelIds": [],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture u4"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "ZW1wdHkgbGFiZWxzIGJvZHk="
+     }
+    }
+   },
+   "expected": false
+  },
+  {
+   "case": "u5",
+   "why": "Byte-exact: lowercase spelling of the category is not a match.",
+   "message": {
+    "id": "u5",
+    "labelIds": [
+     "INBOX",
+     "category_promotions"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture u5"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "bG93ZXJjYXNlIGJvZHk="
+     }
+    }
+   },
+   "expected": false
+  }
+ ],
+ "mixed": {
+  "case": "m",
+  "why": "Mixed list through fetch_recent_messages: two promotions skipped, the rest kept in order, key-absent kept.",
+  "messages": [
+   {
+    "id": "m1",
+    "labelIds": [
+     "INBOX",
+     "CATEGORY_PERSONAL"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture m1"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "a2VwdCBvbmU="
+     }
+    }
+   },
+   {
+    "id": "m2",
+    "labelIds": [
+     "INBOX",
+     "CATEGORY_PROMOTIONS"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture m2"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "c2tpcHBlZCBvbmU="
+     }
+    }
+   },
+   {
+    "id": "m3",
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture m3"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "a2VwdCB0d28="
+     }
+    }
+   },
+   {
+    "id": "m4",
+    "labelIds": [
+     "CATEGORY_PROMOTIONS",
+     "UNREAD"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture m4"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "c2tpcHBlZCB0d28="
+     }
+    }
+   },
+   {
+    "id": "m5",
+    "labelIds": [
+     "INBOX",
+     "CATEGORY_UPDATES"
+    ],
+    "payload": {
+     "mimeType": "text/plain",
+     "headers": [
+      {
+       "name": "Subject",
+       "value": "Fixture m5"
+      },
+      {
+       "name": "From",
+       "value": "Fixture Sender <fixture@example.invalid>"
+      }
+     ],
+     "body": {
+      "data": "a2VwdCB0aHJlZQ=="
+     }
+    }
+   }
+  ],
+  "expected": {
+   "skipped": 2,
+   "ids": [
+    "m1",
+    "m3",
+    "m5"
+   ]
+  }
+ }
+}
