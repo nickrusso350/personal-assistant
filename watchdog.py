@@ -43,7 +43,7 @@ import requests
 
 from env_loader import load_env_file
 
-LOG_PATH = Path.home() / "Library" / "Logs" / "personal_assistant" / "digest.out"
+from paths import LOG_PATH
 PUSHOVER_URL = "https://api.pushover.net/1/messages.json"
 TITLE = "Digest watchdog"
 ATTEMPTS = 3

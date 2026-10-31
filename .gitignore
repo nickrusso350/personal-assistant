@@ -18,3 +18,6 @@ state.json
 *secret*
 *.bak
 *.bak-*
+
+# Persisted groupings (written under the log directory, never the repo)
+groupings/

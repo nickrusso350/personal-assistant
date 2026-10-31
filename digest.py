@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, time, timedelta
 from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
@@ -6,14 +7,16 @@ from extract import extract_commitments
 from extract_imessage import apply_what_gate, apply_window_guard, extract_text_commitments
 from fetch_imessage import IMessageFetchError, fetch_messages
 from reminders_write import reconcile, write_back
-from synthesize import build_records, filter_time_conflict, synthesize
+from synthesize import _log_records, build_records, filter_time_conflict, synthesize
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from state import load_state, save_state, STATE_FILE
+from paths import LOG_PATH
 
 QUERY = "newer_than:2d"
 MAX_RESULTS = 200
 HORIZON_DAYS = 7
 TEXT_UNAVAILABLE = "Text source unavailable this morning."
+GROUPINGS_DIR = LOG_PATH.parent / "groupings"
 
 def process_messages(messages, state, today):
     """Fold newly fetched messages into state["commitments"].
@@ -984,6 +987,38 @@ def fetch_inputs():
         texts, text_failed = [], True
     return messages, events, texts, text_failed
 
+def write_grouping(grouping, today):
+    """Persist the run's grouping to GROUPINGS_DIR/grouping_<today>.json
+    (ruled 2026-10-30) for the weekly wave-tops reader. Written by the 7:00
+    run, never read back on the 7:00 path.
+
+    The file is {"records", "groups", "cause"} with records in the
+    _log_records shape, the same as the SYNTHESIS INPUT line: raw email body
+    stays off disk under the log directory (ruled 2026-10-31, on the 9/17
+    ruling). ref tuples become lists in the file, as they do in digest.out.
+    A fallback morning is written too, groups null plus cause, so "synthesis
+    failed" reads differently from "run never happened". A second run on the
+    same day overwrites the first.
+
+    S6 posture: the file is never worth the morning. Any failure prints one
+    GROUPING WRITE FAILED line and returns; success prints GROUPING WRITTEN.
+    The text is built in full before the file is opened, so a value json
+    cannot encode fails here without leaving a partial file."""
+    path = GROUPINGS_DIR / f"grouping_{today}.json"
+    try:
+        persisted = {
+            "records": _log_records(grouping["records"]),
+            "groups": grouping["groups"],
+            "cause": grouping["cause"],
+        }
+        text = json.dumps(persisted, indent=2, ensure_ascii=False)
+        GROUPINGS_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    except Exception as error:
+        print(f"GROUPING WRITE FAILED {error}")
+        return
+    print(f"GROUPING WRITTEN {path}")
+
 def run_digest():
     """Run the full digest: fetch, extract, reconcile, partition, write back,
     then render. Prints the digest and run summary. Returns (title, body) —
@@ -1020,6 +1055,7 @@ def run_digest():
         "groups": groups["groups"] if groups is not None else None,
         "cause": cause,
     }
+    write_grouping(grouping, today)
     write_back(state, attention, todo, grouping=grouping)
 
     notes = (TEXT_UNAVAILABLE,) if text_failed else ()
