@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Replay recorded SYNTHESIS INPUTs through the current contract. Read-only.
+"""Replay recorded SYNTHESIS INPUTs through the current contract.
 
 Reads digest.out, re-runs synthesize() on each morning's recorded records,
 and reports membership as ref-sets so groupings are comparable across days.
-One API call per morning. Touches no state, writes no files.
+One API call per morning. Touches no state; writes files only under
+--write-groupings.
 
 Extended 2026-09-25 for zone-of-render (Option D, ruled 2026-09-24). Two
 additions; everything above is unchanged, including the header line and the
@@ -22,10 +23,18 @@ SYNTHESIS PRIMARY lines are passed through the same way (2026-10-03): with
 code selecting the primary, the G lines show code's pick, and these lines
 are where the model's differing proposal and the deciding term survive.
 
-Usage: python3 replay_mornings.py 2026-09-11 2026-09-12 2026-09-13
+--write-groupings DIR (2026-10-31): one grouping_YYYY-MM-DD.json per replayed
+morning in DIR, in write_grouping's persisted shape and bytes - records
+through _log_records whatever the morning's date, fallback mornings with
+groups null plus cause. With the flag, the client is wrapped for the run and
+a last line gives calls (every messages.create, retries included), input
+tokens and output tokens. Without it, output is unchanged.
+
+Usage: python3 replay_mornings.py [--write-groupings DIR] 2026-09-11 2026-09-12
 """
 import contextlib, io, json, os, socket, subprocess, sys, datetime
-from synthesize import synthesize
+import anthropic
+from synthesize import _log_records, synthesize
 
 REPO = os.path.dirname(os.path.abspath(__file__))
 LOG = os.path.expanduser("~/Library/Logs/personal_assistant/digest.out")
@@ -78,12 +87,79 @@ def refsets(groups, by_id):
     return sorted(sets)
 
 
+def write_grouping(out_dir, d, recs, groups, cause):
+    """Write one morning in digest.write_grouping's persisted shape and
+    bytes: {"records", "groups", "cause"}, indent=2, ensure_ascii=False."""
+    persisted = {
+        "records": _log_records(recs),
+        "groups": groups["groups"] if groups is not None else None,
+        "cause": cause,
+    }
+    path = os.path.join(out_dir, "grouping_%s.json" % d)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(persisted, indent=2, ensure_ascii=False))
+    print("  WROTE %s" % path)
+
+
+USAGE = {"calls": 0, "input": 0, "output": 0}
+
+
+@contextlib.contextmanager
+def counting_client():
+    """Sum usage over every messages.create while the replay runs (ruled
+    2026-10-31). synthesize._call_model drops response.usage, so the count is
+    taken at the client: anthropic.Anthropic is swapped for a factory whose
+    clients count, and restored on exit. A call that raises counts as a call
+    and adds no tokens."""
+    real = anthropic.Anthropic
+
+    def make(*args, **kwargs):
+        client = real(*args, **kwargs)
+        create = client.messages.create
+
+        def counted(*cargs, **ckwargs):
+            USAGE["calls"] += 1
+            response = create(*cargs, **ckwargs)
+            USAGE["input"] += response.usage.input_tokens
+            USAGE["output"] += response.usage.output_tokens
+            return response
+
+        client.messages.create = counted
+        return client
+
+    anthropic.Anthropic = make
+    try:
+        yield
+    finally:
+        anthropic.Anthropic = real
+
+
 def main():
     provenance()
-    dates = sys.argv[1:]
+    args = sys.argv[1:]
+    out_dir = None
+    if "--write-groupings" in args:
+        i = args.index("--write-groupings")
+        if i + 1 >= len(args):
+            sys.exit("--write-groupings needs a directory")
+        out_dir = os.path.expanduser(args[i + 1])
+        del args[i:i + 2]
+    dates = args
     if not dates:
         sys.exit("give one or more dates")
+    if out_dir is not None:
+        os.makedirs(out_dir, exist_ok=True)
     data = load(set(dates))
+    if out_dir is None:
+        replay(dates, data, None)
+        return
+    with counting_client():
+        replay(dates, data, out_dir)
+    print("\ncalls=%d  input_tokens=%d  output_tokens=%d"
+          % (USAGE["calls"], USAGE["input"], USAGE["output"]))
+
+
+def replay(dates, data, out_dir):
     for d in dates:
         entry = data.get(d)
         if not entry or "INPUT" not in entry:
@@ -107,12 +183,16 @@ def main():
             print("%s  FALLBACK cause=%s" % (d, cause))
             for line in zone_lines + fallback_lines:
                 print("  " + line)
+            if out_dir is not None:
+                write_grouping(out_dir, d, recs, groups, cause)
             continue
         new = refsets(groups["groups"], by_id)
         same = old == new
         print("=== %s  records=%d  old_groups=%d  new_groups=%d  %s ==="
               % (d, len(recs), len(old), len(new),
                  "UNCHANGED" if same else "CHANGED"))
+        if out_dir is not None:
+            write_grouping(out_dir, d, recs, groups, cause)
         if not same:
             for s in new:
                 if s not in old:
