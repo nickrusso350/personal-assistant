@@ -963,6 +963,14 @@ def build_digest(state, events, today, compact_calendar=False, partition=None,
             body_lines += section
     return title, "\n".join(body_lines)
 
+def stage(name):
+    """Print one STAGE line as a stage finishes (ruled 2026-10-30): the stage
+    name and RUN START's timestamp form, nothing else — no data, no counts.
+    Called only from run_digest and fetch_inputs, so a library module never
+    prints it. Six names, in code order: gmail-fetch, calendar-fetch,
+    imessage-fetch, extraction, reconcile, synthesis."""
+    print(f"STAGE {name} {datetime.now().isoformat(timespec='seconds')}")
+
 def fetch_inputs():
     """Phase 1 — every fetch in the run. Returns (messages, events, texts,
     text_failed).
@@ -979,12 +987,15 @@ def fetch_inputs():
     service = build("gmail", "v1", credentials=creds)
     messages, skipped = fetch_recent_messages(service, QUERY, MAX_RESULTS)
     print(f"GMAIL FETCH {len(messages)} kept, {skipped} skipped (promotions)")
+    stage("gmail-fetch")
     events = fetch_upcoming_events(HORIZON_DAYS)
+    stage("calendar-fetch")
     try:
         texts, text_failed = fetch_messages(), False
     except IMessageFetchError as error:
         print(f"IMESSAGE FETCH FAILED {error.errno if error.errno is not None else error}")
         texts, text_failed = [], True
+    stage("imessage-fetch")
     return messages, events, texts, text_failed
 
 def write_grouping(grouping, today):
@@ -1040,9 +1051,11 @@ def run_digest():
 
     skipped, extracted, failed = process_messages(messages, state, today)
     text_skipped, text_extracted, text_failures = process_texts(texts, state, today)
+    stage("extraction")
     save_state(state, STATE_FILE)
 
     reconcile(state)
+    stage("reconcile")
 
     partition = partition_commitments(state["commitments"], today_d)
     attention, todo, appointments = partition
@@ -1050,6 +1063,7 @@ def run_digest():
     # so the grouping the page shows is the grouping write_back sees (S4).
     records = build_records(events, attention, todo, appointments, today_d)
     groups, cause = synthesize(records, today_d)
+    stage("synthesis")
     grouping = {
         "records": records,
         "groups": groups["groups"] if groups is not None else None,
