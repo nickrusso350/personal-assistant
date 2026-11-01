@@ -9,6 +9,11 @@ def extract_commitments(message):
     """Take one message string, return a LIST of commitment dicts.
     Each dict has keys: type, what, date, time, action_needed.
     Returns an empty list [] when the message contains no commitment.
+
+    Raises ValueError when the reply is not JSON, or is JSON that is not a list
+    of objects once a bare object is wrapped (ruled 2026-11-01, Issue #1). The
+    caller (digest.process_messages) catches it, records the message as failed,
+    and leaves its id out of processed_message_ids so the next run retries.
     """
     today = date.today().isoformat()
     prompt = """You are a precise data-extraction tool. Extract all commitments from the message below and return them as a JSON array of objects.
@@ -81,6 +86,15 @@ Message:
     # wrap it so callers always receive a list (prevents silent mis-iteration).
     if isinstance(parsed, dict):
         parsed = [parsed]
+    # Shape check: callers index every element as a dict. Anything else raises
+    # here, inside process_messages' catch, rather than downstream of it.
+    if not isinstance(parsed, list):
+        raise ValueError("Model did not return a list of objects: "
+                         + type(parsed).__name__ + " " + repr(parsed)[:200])
+    for item in parsed:
+        if not isinstance(item, dict):
+            raise ValueError("Model did not return a list of objects: list with "
+                             + type(item).__name__ + " element " + repr(parsed)[:200])
     return parsed
 
 # ─── Standalone test ────────────────────────────────────────────
