@@ -1,13 +1,22 @@
-"""Tests for send_push's bounded retry (ruled 2026-11-01, Issue #1).
+"""Tests for send_push's bounded retry (ruled 2026-11-01, Issue #1; retry
+boundary narrowed 2026-11-07).
 
-send_push retries on requests.ConnectionError (ConnectTimeout included) and
-on an HTTP status of 500 or above, up to ATTEMPTS tries RETRY_WAIT_SECONDS
-apart, printing one SEND ATTEMPT line per such failure. ReadTimeout, a 4xx,
+send_push retries on a requests.ConnectionError whose wrapped cause shows the
+connection was never established, and on an HTTP status of 500 or above, up to
+ATTEMPTS tries RETRY_WAIT_SECONDS apart, printing one SEND ATTEMPT line per
+such failure. "Never established" is the wrapped urllib3 reason being a
+ConnectTimeoutError, NewConnectionError, or NameResolutionError, matched by
+class. Every other ConnectionError (a connection dropped after the request was
+sent, an SSL failure, an OSError, no wrapped cause at all), ReadTimeout, a 4xx,
 and a 200 whose Pushover status is not 1 raise at once.
 
 Each case scripts requests.post as a sequence of outcomes: an exception
 instance to raise, or (http status, Pushover status) for a real
-requests.Response. time.sleep is replaced by a recorder, so nothing waits.
+requests.Response. Connection failures are built the way requests' adapter
+builds them (requests 2.34.2, adapters.py:710-732): the requests exception
+wraps either a urllib3 MaxRetryError carrying the urllib3 reason, or the raw
+ProtocolError / OSError / ClosedPoolError. time.sleep is replaced by a recorder,
+so nothing waits.
 send_push.load_env_file is replaced by a no-op so the test never reads
 ~/.personal_assistant.env; the two Pushover variables are set to fake values
 in os.environ for the run and restored after. Nothing leaves the machine.
@@ -27,11 +36,23 @@ import socket
 import subprocess
 
 import requests
+from urllib3 import exceptions as u3
 
 import send_push
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_KEYS = ("PUSHOVER_USER_KEY", "PUSHOVER_APP_TOKEN")
+URL = "https://api.pushover.net/1/messages.json"
+
+
+def via_max_retry(outer, reason):
+    """requests' MaxRetryError branch: outer(MaxRetryError(reason=...))."""
+    return outer(u3.MaxRetryError(None, URL, reason=reason))
+
+
+def name_resolution():
+    return u3.NameResolutionError(
+        "api.pushover.net", None, socket.gaierror(8, "fixture: nodename not known"))
 
 
 def provenance():
@@ -60,14 +81,45 @@ def response(http_status, pushover_status):
 
 OK = (200, 1)
 
+RETRIED = {"outcome": None, "calls": 2, "sleeps": 1, "attempt_lines": 1}
+RAISED = {"outcome": "RuntimeError", "calls": 1, "sleeps": 0, "attempt_lines": 0}
+
 # (case, scripted outcomes, expected {outcome, calls, sleeps, attempt_lines})
 CASES = [
-    ("ConnectionError then success",
+    # Never established: retried.
+    ("NewConnectionError then success",
+     [via_max_retry(requests.ConnectionError,
+                    u3.NewConnectionError(None, "fixture refused")), OK],
+     RETRIED),
+    ("NameResolutionError then success",
+     [via_max_retry(requests.ConnectionError, name_resolution()), OK],
+     RETRIED),
+    ("ConnectTimeout (ConnectTimeoutError) then success",
+     [via_max_retry(requests.ConnectTimeout,
+                    u3.ConnectTimeoutError("fixture connect timeout")), OK],
+     RETRIED),
+    # Any other ConnectionError: raised at once.
+    ("dropped after send (ProtocolError, Connection aborted)",
+     [requests.ConnectionError(u3.ProtocolError(
+         "Connection aborted.", ConnectionResetError(54, "fixture reset"))), OK],
+     RAISED),
+    ("MaxRetryError with ProtocolError reason",
+     [via_max_retry(requests.ConnectionError,
+                    u3.ProtocolError("fixture protocol")), OK],
+     RAISED),
+    ("OSError",
+     [requests.ConnectionError(OSError(54, "fixture reset")), OK],
+     RAISED),
+    ("SSLError via MaxRetryError",
+     [via_max_retry(requests.exceptions.SSLError,
+                    u3.SSLError("fixture ssl")), OK],
+     RAISED),
+    ("ClosedPoolError",
+     [requests.ConnectionError(u3.ClosedPoolError(None, "fixture closed")), OK],
+     RAISED),
+    ("bare ConnectionError, no wrapped cause",
      [requests.ConnectionError("fixture refused"), OK],
-     {"outcome": None, "calls": 2, "sleeps": 1, "attempt_lines": 1}),
-    ("ConnectTimeout then success",
-     [requests.ConnectTimeout("fixture connect timeout"), OK],
-     {"outcome": None, "calls": 2, "sleeps": 1, "attempt_lines": 1}),
+     RAISED),
     ("HTTP 503 then success",
      [(503, 0), OK],
      {"outcome": None, "calls": 2, "sleeps": 1, "attempt_lines": 1}),
@@ -80,8 +132,8 @@ CASES = [
     ("200 with Pushover status 0",
      [(200, 0), OK],
      {"outcome": "RuntimeError", "calls": 1, "sleeps": 0, "attempt_lines": 0}),
-    ("three ConnectionErrors",
-     [requests.ConnectionError("fixture refused")] * 3,
+    ("three NameResolutionErrors",
+     [via_max_retry(requests.ConnectionError, name_resolution())] * 3,
      {"outcome": "RuntimeError", "calls": 3, "sleeps": 2, "attempt_lines": 3}),
 ]
 
