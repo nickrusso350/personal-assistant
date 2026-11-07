@@ -364,3 +364,23 @@ Design only; nothing built. Summary: Session_Summary_2026-10-04.md.
 - Ruled: retry only connection-never-established causes. A `requests.ConnectionError` is retried when it wraps a urllib3 `MaxRetryError` whose `reason` is a `ConnectTimeoutError`, `NewConnectionError`, or `NameResolutionError` — urllib3 types, matched by class (`isinstance`), never by string. Every other `ConnectionError` raises at once: dropped after send, `SSLError`, `OSError`, `ClosedPoolError`, no wrapped cause. 5xx retry, attempts, and wait are unchanged. The dominant failure class (`NameResolutionError`) stays retried.
 - Reason the direction is safe: a misclassified type costs a retry, and the watchdog pages either way.
 - Built: `NEVER_CONNECTED` and `_never_connected` in `send_push.py`. Proof: `test_send_push_retry.py`, 14 cases, with failures built the way requests' adapter builds them. Six new raise-at-once cases FAILed on `c7a31e1` and pass after the patch; three runs, exit 0, identical output md5.
+
+## Rulings 2026-11-07 (wave-tops selection rule, from the 10/30 design table, plus file-shape rulings)
+
+The 10/30 rule (Nick, Q2/Q3): In — travel legs; timed events with a non-empty place; all-day events with a place. Out — tasks by `kind`; place-less events. Hard cap five. Every travel leg first, then remaining by duration descending, ties chronological. Zero vital → no video, logged. No judgment clause; trigger for adding one is a real crowding-out morning.
+
+Ruled 2026-11-07 against the persisted grouping shape (all on Claude's recommendation):
+- Unit: the group. Tests run on the group's `primary` record; a group is travel if any member is; `select()` returns groups.
+- Travel signals in the file: `FLIGHT <n>` in `identifiers` on any member (one is enough; `_is_journey` is the renderer's two-flight test and is not used here), non-null group `container`, or `synthesize.codes_only(primary)` (`synthesize.py:425`). The Travel-calendar signal is not persisted — recorded gap; trigger: a leg on that calendar no other signal catches.
+- Place: `location != ""`. Consequence: a gmail/iMessage item can be selected only as a travel leg.
+- All-day: `source == "calendar" and kind == "event" and time is None`.
+- Duration: timed = end − start from `time`/`zone` and `end_time`/`end_zone`, end-before-start read as next day (>24 h timed is an accepted wart). All-day = remaining span from the run date (`end_date − run_date + 1`, or 1 when `end_date` is null). Travel groups order chronologically among themselves; duration never ranks them.
+- Window: `select(grouping, run_date)`; primary `date` in `[run_date, run_date + 6]`; null `date` out.
+- Fallback morning (`groups` null): empty selection, one logged line carrying `cause`.
+- Log lines: `WAVETOPS SELECT <k> of <n> groups`; on zero, `WAVETOPS SELECT 0 of <n> groups: <reason>`.
+- (1) `TASK_KINDS` is `("todo", "attention")`; `"appointment"` and `"event"` are not tasks.
+- (2) Kind beats everything: the task test runs first, on the primary; the travel test second, on any member. A todo primary carrying a `FLIGHT` identifier is out.
+- (3) Duration is compared in minutes across timed and all-day groups, so a one-day all-day span (1440) outranks any timed event under 24 h. Intended.
+- (4) Chronological order: primary date; all-day first on its date; zoned instants where time and zone are present, bare clock otherwise; file order last.
+- (5) A fallback morning logs n as 0 (there are no groups to count) and the reason as `fallback: <cause>`; zero vital logs `no vital groups`.
+- Mixed zones on one date: zoned primaries sort before bare-clock primaries; a bare clock is never read in the home zone for ordering (the 9/27 label-not-convert line, applied by shape). Recorded wart: a bare 06:00 leg sorts after a zoned 23:00 one on the same date. Reopen trigger: two same-day legs reading out of order.
