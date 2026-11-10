@@ -7,7 +7,7 @@ from extract import extract_commitments
 from extract_imessage import apply_what_gate, apply_window_guard, extract_text_commitments
 from fetch_imessage import IMessageFetchError, fetch_messages
 from reminders_write import reconcile, write_back
-from synthesize import _log_records, build_records, filter_time_conflict, synthesize
+from synthesize import _log_records, build_records, filter_time_conflict, route_chain, synthesize
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from state import load_state, save_state, STATE_FILE
 from paths import LOG_PATH
@@ -714,12 +714,18 @@ def _is_journey(group, by_rid):
     extracted — no parsing here, no fuzzy match. Two flight numbers on one
     date is the shape prompt rule 3 merges into one journey; a single flight
     number is an ordinary flight and keeps its range line unchanged.
+
+    Ruled 2026-11-09: or the members form a route chain
+    (synthesize.route_chain) - legs named "XXX to YYY" whose codes connect in
+    start order, the shape a phone-side calendar entry takes with no flight
+    number. The same call sits in synthesize._is_journey, so the selector's
+    term (0) and this expansion never disagree about a group.
     """
     flights = {identifier
                for m in group["members"]
                for identifier in (by_rid[m].get("identifiers") or [])
                if identifier.startswith("FLIGHT ")}
-    return len(flights) >= 2
+    return len(flights) >= 2 or route_chain(group["members"], by_rid)
 
 
 def _record_instant(record, clock_key, zone_key):

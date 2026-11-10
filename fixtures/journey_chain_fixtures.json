@@ -1,0 +1,84 @@
+{
+ "_note": "Self-authored (2026-11-09). Reservation codes, flight numbers and street addresses are invented. Endpoints are [date, clock, IANA zone]. Records are built from these events by synthesize.build_records; commitments are gmail appointments in the process_messages shape.",
+ "today": "2026-11-09",
+ "cases": [
+  {
+   "case": "a. two legs TPA->DTW, DTW->GRB, no FLIGHT ids, street addresses",
+   "journey": true,
+   "render": true,
+   "render_zone": "America/Chicago",
+   "end_render_zone": "America/Chicago",
+   "events": [
+    {"id": "a1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"},
+    {"id": "a2", "summary": "Flight: DTW to GRB", "start": ["2026-11-13", "16:59", "America/Detroit"], "end": ["2026-11-13", "17:26", "America/Chicago"], "location": "Detroit Metropolitan Wayne County Airport, 200 Example Dr, Detroit, MI, United States", "description": "Reservation QZX4K7"}
+   ],
+   "expected": ["Fri, Nov 13", "  • 12:39 PM EST — Departure: Flight: TPA to DTW", "  • 5:26 PM CST — Arrival: Flight: DTW to GRB"]
+  },
+  {
+   "case": "b. twin copies of one leg",
+   "journey": false,
+   "events": [
+    {"id": "b1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"},
+    {"id": "b2", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "", "description": "Reservation QZX4K7"}
+   ]
+  },
+  {
+   "case": "c. broken chain TPA->DTW, ORD->GRB",
+   "journey": false,
+   "events": [
+    {"id": "c1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"},
+    {"id": "c2", "summary": "Flight: ORD to GRB", "start": ["2026-11-13", "16:10", "America/Chicago"], "end": ["2026-11-13", "17:05", "America/Chicago"], "location": "O'Hare International Airport, 300 Example Rd, Chicago, IL, United States", "description": "Reservation QZX4K7"}
+   ]
+  },
+  {
+   "case": "d. one member without a code pair",
+   "journey": false,
+   "events": [
+    {"id": "d1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"},
+    {"id": "d2", "summary": "Flight to Green Bay", "start": ["2026-11-13", "16:59", "America/Detroit"], "end": ["2026-11-13", "17:26", "America/Chicago"], "location": "Detroit Metropolitan Wayne County Airport, 200 Example Dr, Detroit, MI, United States", "description": "Reservation QZX4K7"}
+   ]
+  },
+  {
+   "case": "e. one member without a start instant (gmail bare clock)",
+   "journey": false,
+   "events": [
+    {"id": "e1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"}
+   ],
+   "commitments": [
+    {"id": "fixture-e2:0", "status": "open", "type": "appointment", "what": "Flight: DTW to GRB", "date": "2026-11-13", "time": "16:59", "action_needed": null, "sender": "someone@example.com", "subject": "(fixture)"}
+   ]
+  },
+  {
+   "case": "f. existing FLIGHT-id journey, codes do not chain",
+   "journey": true,
+   "render": true,
+   "render_zone": "America/New_York",
+   "end_render_zone": "America/Los_Angeles",
+   "events": [
+    {"id": "f1", "summary": "Flight to Atlanta (DL 4417)", "start": ["2026-11-13", "08:05", "America/New_York"], "end": ["2026-11-13", "09:40", "America/New_York"], "location": "", "description": "Confirmation WQ8R2M"},
+    {"id": "f2", "summary": "Flight to Seattle (DL 4418)", "start": ["2026-11-13", "11:15", "America/New_York"], "end": ["2026-11-13", "13:50", "America/Los_Angeles"], "location": "", "description": "Confirmation WQ8R2M"}
+   ],
+   "expected": ["Fri, Nov 13", "  • 8:05 AM EST — Departure: Flight to Atlanta (DL 4417)", "  • 1:50 PM PST — Arrival: Flight to Seattle (DL 4418)"]
+  },
+  {
+   "case": "g. single member",
+   "journey": false,
+   "events": [
+    {"id": "g1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"}
+   ]
+  },
+  {
+   "case": "i. four-leg round trip, one group (UNGRADED, reported only)",
+   "ungraded": true,
+   "render": true,
+   "render_zone": "America/Chicago",
+   "end_render_zone": "America/Chicago",
+   "events": [
+    {"id": "i1", "summary": "Flight: TPA to DTW", "start": ["2026-11-13", "12:39", "America/New_York"], "end": ["2026-11-13", "15:20", "America/Detroit"], "location": "Tampa International Airport, 100 Example Pkwy, Tampa, FL, United States", "description": "Reservation QZX4K7"},
+    {"id": "i2", "summary": "Flight: DTW to GRB", "start": ["2026-11-13", "16:59", "America/Detroit"], "end": ["2026-11-13", "17:26", "America/Chicago"], "location": "Detroit Metropolitan Wayne County Airport, 200 Example Dr, Detroit, MI, United States", "description": "Reservation QZX4K7"},
+    {"id": "i3", "summary": "Flight: GRB to DTW", "start": ["2026-11-15", "06:10", "America/Chicago"], "end": ["2026-11-15", "08:55", "America/Detroit"], "location": "Green Bay Austin Straubel International Airport, 400 Example Ave, Green Bay, WI, United States", "description": "Reservation QZX4K7"},
+    {"id": "i4", "summary": "Flight: DTW to TPA", "start": ["2026-11-15", "10:20", "America/Detroit"], "end": ["2026-11-15", "13:05", "America/New_York"], "location": "Detroit Metropolitan Wayne County Airport, 200 Example Dr, Detroit, MI, United States", "description": "Reservation QZX4K7"}
+   ]
+  }
+ ]
+}

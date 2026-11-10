@@ -460,6 +460,50 @@ def codes_only(record):
     return runs[0] if len(runs) == 1 else None
 
 
+def route_pair(record):
+    """(origin, destination) from the record's summary by the codes-run
+    matcher, with the location-empty test left out; None otherwise.
+
+    Ruled 2026-11-09 (journey route chain). codes_only is reused as-is on a
+    copy whose location reads "", so this and codes_only can never disagree
+    about what a code run is. codes_only itself is untouched: it is the
+    zone-override discriminator and wavetops.py's travel test, and both need
+    the location test. A calendar leg names its airport by street address,
+    which is exactly what codes_only exists to refuse.
+    """
+    return codes_only({**record, "location": ""})
+
+
+def route_chain(members, by_id):
+    """True when the members are consecutive legs of one route (ruled
+    2026-11-09): two or more members, every one with a route_pair and a start
+    instant, and - ordered by start instant - each member's destination code
+    equal to the next member's origin code, by byte comparison.
+
+    A member with no single code pair, or no start instant (a bare clock, an
+    all-day record), disqualifies the whole group: no partial chains. Ties on
+    the instant keep member order (sorted is stable). Twin copies of one leg
+    never chain - "TPA to DTW" twice asks DTW == TPA. Dates are not read: the
+    group's dates are synthesis's question (prompt rule 2), not this one's.
+
+    One implementation, called from both journey tests - _is_journey here
+    and digest._is_journey - as an additive clause beside the FLIGHT-
+    identifier test, which is unchanged.
+    """
+    if len(members) < 2:
+        return False
+    legs = []
+    for m in members:
+        record = by_id[m]
+        pair = route_pair(record)
+        instant = _start_instant(record)
+        if pair is None or instant is None:
+            return False
+        legs.append((instant, pair))
+    legs.sort(key=lambda leg: leg[0])
+    return all(legs[i][1][1] == legs[i + 1][1][0] for i in range(len(legs) - 1))
+
+
 def _override_codes(parsed, records, log=True):
     """Replace the model's zones on groups named only by airport codes.
     Mutates parsed in place. Never raises.
@@ -583,21 +627,23 @@ PRIMARY_TERMS = (0, 1, 2, 3, 4, 5, 6)
 
 
 def _is_journey(members, by_id):
-    """True when the members carry two or more distinct "FLIGHT " identifiers.
+    """True when the members carry two or more distinct "FLIGHT " identifiers,
+    or form a route chain (route_chain, ruled 2026-11-09).
 
     Code-derived, never model-stated: the reply has no journey field, and
     prompt rule 3 is the model's reason to merge, not a flag code reads. The
     test is digest._is_journey's (ruled 2026-09-16) over the same
     build_records identifiers, exact string comparison, so a group this
     selector treats as a journey is exactly a group the renderer expands into
-    Departure and Arrival. Restated here rather than imported: digest imports
-    this module.
+    Departure and Arrival. The FLIGHT test is restated here rather than
+    imported (digest imports this module); the route-chain clause is one
+    function both copies call.
     """
     flights = {identifier
                for m in members
                for identifier in (by_id[m].get("identifiers") or [])
                if identifier.startswith("FLIGHT ")}
-    return len(flights) >= 2
+    return len(flights) >= 2 or route_chain(members, by_id)
 
 
 def _start_instant(record):

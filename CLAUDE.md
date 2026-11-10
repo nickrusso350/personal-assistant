@@ -384,3 +384,12 @@ Ruled 2026-11-07 against the persisted grouping shape (all on Claude's recommend
 - (4) Chronological order: primary date; all-day first on its date; zoned instants where time and zone are present, bare clock otherwise; file order last.
 - (5) A fallback morning logs n as 0 (there are no groups to count) and the reason as `fallback: <cause>`; zero vital logs `no vital groups`.
 - Mixed zones on one date: zoned primaries sort before bare-clock primaries; a bare clock is never read in the home zone for ordering (the 9/27 label-not-convert line, applied by shape). Recorded wart: a bare 06:00 leg sorts after a zoned 23:00 one on the same date. Reopen trigger: two same-day legs reading out of order.
+
+## Rulings — 2026-11-09 (journey route-chain clause)
+- Journey detection gains a second, additive clause, the route chain: a group of 2+ members qualifies when every member's summary yields exactly one airport-code pair (the existing codes-run matcher, without the location-empty test) and, ordered by start instant, each member's destination code equals the next member's origin code by byte comparison. A member with no start instant or no single code pair disqualifies the group. The FLIGHT-identifier test is unchanged.
+- Basis: the 11/07–11/09 pages rendered a two-leg trip (calendar events with no flight number) as one line in the wrong zone with a false "sources disagree" note. $0 counterfactual over 105 multi-member groups in 56 files: the clause flags 3 groups (11-07, 11-08, 11-09), no others.
+- Both copies of the journey test change together (`digest._is_journey`, `synthesize._is_journey`), through one predicate, `synthesize.route_chain`.
+- Accepted wart: "Departure: Flight: …" double prefix, to be addressed later.
+- On record, not built: the model's start `render_zone` for that group breaks rule 11 (Chicago for a Tampa departure); own design table after the travel-calendar signal; pulled forward by any non-journey line showing a wrong zone.
+- New upstream writer: phone-side calendar additions land in Google (iPhone default calendar is the Gmail account). Signature: "Flight: XXX to YYY" title, airport street address, reservation number, no flight number.
+- Round trip (four legs, two dates, one group) would render as one journey and lose the destination; left as built on the different-dates-split rule; reopen trigger: outbound and return legs in one group on any morning.
