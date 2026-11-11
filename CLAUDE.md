@@ -393,3 +393,112 @@ Ruled 2026-11-07 against the persisted grouping shape (all on Claude's recommend
 - On record, not built: the model's start `render_zone` for that group breaks rule 11 (Chicago for a Tampa departure); own design table after the travel-calendar signal; pulled forward by any non-journey line showing a wrong zone.
 - New upstream writer: phone-side calendar additions land in Google (iPhone default calendar is the Gmail account). Signature: "Flight: XXX to YYY" title, airport street address, reservation number, no flight number.
 - Round trip (four legs, two dates, one group) would render as one journey and lose the destination; left as built on the different-dates-split rule; reopen trigger: outbound and return legs in one group on any morning.
+
+## Rulings 2026-11-08 (answer key; container clause falsified)
+- Issue #1 closed on 145a828 (provisional lifted 11/08; 3a17bc8 was HEAD).
+- select() matches the 10/30 rule 9/9 on the live groupings. Three
+  place-less calendar faces ruled off (all-day renewal, timed work block,
+  timed payment verify); tasks by kind off — wave-tops is travel and big
+  meetings. Place test stays as written; reopen trigger: the first real
+  meeting on the digest that misses the wave-tops (candidate second
+  signal: timed calendar event with attendees).
+- Backfill approved and run: replay_mornings.py --write-groupings into
+  scratch 2026-11-08/groupings_backfill, 46 mornings, 45 calls, 0
+  fallbacks; production groupings/ never written.
+- Container clause ruled OUT: over 46 mornings it was the only signal that
+  fired on a non-flight group, fired on 3 of 7 mornings over identical
+  records, and swept in an errand. A coin-flip signal cannot carry rank.
+  Removal waits for the clause that replaces what it covered (see
+  2026-11-11). Model emits the container inconsistently — recorded, not
+  worked.
+- Reopen trigger for within-travel ordering: a flight cut by the cap on
+  any morning after 9/22.
+
+## Rulings 2026-11-10 (trip-evidence table)
+- A flight, a hotel booking, or a calendar entry Nick wrote each proves a
+  trip exists; only flights earn a sentence.
+- The wave-top speaks the final destination only, never connections.
+- Travel test gains: any member whose title yields exactly one airport
+  pair (synthesize.route_pair), beside the FLIGHT-identifier test.
+- There is no Travel calendar; "(Travel)" is a case-by-case title suffix,
+  not a signal. No test for self-written trips; they reach the video by
+  the place rule. Reopen trigger: a week Nick was away and the video did
+  not know it.
+- One pipe: the weekly video reads the saved grouping and nothing else;
+  it may run its own model step to write the script; it never fetches
+  from mail or calendar; the digest gains nothing for the video's sake.
+  Code decides what is true to say; the model decides how to say it.
+- Spoken destinations: full public airport list as a fixed snapshot plus
+  a small override file; a code in neither is logged and the sentence
+  leaves the destination out. Video side, separate from airports.py.
+- Greeting is "Good Evening Nick" (video runs Sunday evening).
+- Design criterion (standing): avoid anything that adds a recurring
+  manual step; work harder now to work less later.
+
+## Rulings 2026-11-11 (hotel test, no-flight week, $0 read of 58 groupings)
+- A car rental, like a hotel, is evidence and never speaks (two-hour hold,
+  pick-up pegged to the flight already spoken). On the current contract
+  rentals arrive unplaced (the gmail extractor, airport in the title,
+  location empty), so no clause is needed. Reopen trigger: a rental with
+  no flight in its group or on its day.
+- Ruled (a), historical: the backfill's 30 placed rentals (calendar
+  entries at an airport street address) are parser-era — pre-Ruling-0,
+  files 09-04…09-20 — and with the container clause gone they now speak
+  through the place rule. Same class as 09-12 AA 3112. Reopen trigger: a
+  placed rental on any morning after 9/22, re-checked at Ruling 0's
+  checkpoint; candidate fix: an IATA token or "Airport," in the location,
+  at the table.
+- 09-12 AA 3112 now enters second ([1, 2, 3, 0, 7] → [3, 8, 1, 2, 7]):
+  the 11/08 cap cut, made by container-only rental events, is undone.
+- The "lodging" not-selected reason fired 0 times over 58 files: every
+  hotel primary in the record is outside the window. The evidence read is
+  record-level and is proven by the Orlando trip lines (10-16 and 10-17:
+  Orlando, 10-16…10-17 and 10-17…10-17).
+- Lodging clause, option (a): any all-day placed calendar event
+  (_is_all_day and location != ""), multi-day or single-day, is trip
+  evidence and never speaks. Basis: the spanning hotel event leaves the
+  file once its start passes, so mid-stay only the check-out twin remains
+  and a pair test would let it speak. Cost on record: an all-day placed
+  event Nick writes himself goes silent; 0 such events in 58 files.
+  Reopen trigger: the first all-day placed event on the digest that is
+  not a hotel; first candidate fix a fixed generic token list on the
+  title (hotel/inn/suites/resort/lodge). Fixture allday_place_in re-pins
+  to not-selected with a comment naming the trigger.
+- Container clause out and route_pair-on-any-member in, SAME commit as
+  the lodging clause: 67 groups passed _is_travel on the container alone
+  (hotels and ground legs); without the lodging clause beside the
+  removal, a hotel would fall into the placed bucket and speak.
+- Withdrawn same day — wavetops.py:108 is the 11/07 remaining-span rule,
+  pinned by allday_remaining_span; Chat called it a defect without
+  reading the 11/07 section. The rule stands but its fixture expectation
+  changes: under the lodging clause above, the case's three all-day placed
+  records go to evidence, so it re-pins to selected ['r1'], evidence
+  ['r2', 'r3', 'r4']. The all-day branch of _duration_minutes is
+  unreachable from select() while option (a) stands (an all-day group
+  with no place fails the place test; one with a place is lodging); it is
+  kept as the landing pad for the lodging reopen fix (title token list),
+  and its removal is a backlog line.
+- The 30 hotel groups (over 58 files) led by a timed gmail booking email
+  with no place stay silent by the place rule and count as proof through
+  no_flight_trip, which reads every _is_lodging record in the file, any
+  group, any role — the 11/08 "gmail primary, no location" face,
+  answered. no_flight_trip rulings: the window test is on the record's
+  own date; exactly one distinct city is the destination, else None
+  (reopen trigger: the first week with two lodging cities); the function
+  is pure and the script step logs the drop.
+- No-flight week: a trip proven with no flight is spoken as "traveling to
+  <destination> <days>" — days from the evidence's date span, destination
+  the city from the tail of its location by exact pattern: ", City, ST",
+  then optionally a ZIP (" NNNNN", " NNNNN-NNNN", or ", NNNNN"), then
+  optionally ", United States" or ", USA", anchored at the end; City
+  verbatim, no scoring (hotel-city wart accepted: the hotel's city, not
+  the trip's); no match → dropped and logged. Widened the same day: the
+  first ruled form ended at ST and was read off digit-masked output; it
+  matched 0 of 63 lodging records, every one carrying a ZIP and most a
+  country. A week with no trip and no vital items: greeting
+  plus a statement that the week is clear.
+- Supersedes the 11/08 acceptance expectation: hotel legs do not return
+  on 09-04…09-20; hotel groups leave the selection; flight groups keep
+  their selection and order.
+- Set on record: 46 backfill + 12 live files; the 11/10 figure "102"
+  does not reconcile against anything on disk.

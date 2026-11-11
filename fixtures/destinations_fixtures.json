@@ -1,0 +1,144 @@
+{
+ "about": "destinations.py fixtures (ruled 2026-11-10/11, built 2026-11-11). City cases: the seven distinct lodging location shapes in the 58-file record, digits re-authored (street numbers and ZIPs are invented, real-shaped); plus a bare tail, a non-US address, and negatives. Destination cases: codes from the record (TPA, DFW override), a snapshot row with an empty municipality (DST), and an invented code absent from snapshot and overrides (QXA). Expected values pinned from a captured run read before pinning.",
+ "city_cases": [
+  {
+   "name": "hampton_fort_worth_us",
+   "location": "Hampton Inn & Suites Fort Worth-West-I-30 100 Green Oaks Rd, Fort Worth, TX 76100, United States",
+   "expected": {
+    "city": "Fort Worth"
+   }
+  },
+  {
+   "name": "address_fort_worth_usa",
+   "location": "100 Green Oaks Road, Fort Worth, TX 76100, USA",
+   "expected": {
+    "city": "Fort Worth"
+   }
+  },
+  {
+   "name": "hilton_mukilteo_us",
+   "location": "Hilton Garden Inn Seattle North/Everett 100 Paine Field Blvd, Mukilteo, WA 98200, United States",
+   "expected": {
+    "city": "Mukilteo"
+   }
+  },
+  {
+   "name": "address_mukilteo_usa",
+   "location": "100 Paine Field Boulevard, Mukilteo, WA 98200, USA",
+   "expected": {
+    "city": "Mukilteo"
+   }
+  },
+  {
+   "name": "delta_orlando_us",
+   "location": "Delta Hotels Orlando Lake Buena Vista 100 S Apopka-Vineland Rd, Orlando, FL 32800, United States",
+   "expected": {
+    "city": "Orlando"
+   }
+  },
+  {
+   "name": "address_east_point_usa",
+   "location": "100 Creek Pointe Way, East Point, GA 30300, USA",
+   "expected": {
+    "city": "East Point"
+   }
+  },
+  {
+   "name": "hampton_east_point_comma_zip",
+   "location": "Hampton Inn & Suites Atlanta Airport West/Camp Creek Parkway 100 Creek Pointe Drive, East Point, GA, 30300",
+   "expected": {
+    "city": "East Point"
+   }
+  },
+  {
+   "name": "bare_orlando",
+   "location": ", Orlando, FL",
+   "expected": {
+    "city": "Orlando"
+   }
+  },
+  {
+   "name": "zip_plus_four",
+   "location": "1 Fixture Way, Fixtureville, EX 00001-0001",
+   "expected": {
+    "city": "Fixtureville"
+   }
+  },
+  {
+   "name": "non_us_address",
+   "location": "10 Examplestrasse, 10115 Exampleburg, Germany",
+   "expected": {
+    "city": null
+   }
+  },
+  {
+   "name": "lowercase_state",
+   "location": "1 Fixture Way, Fixtureville, ex 00001",
+   "expected": {
+    "city": null
+   }
+  },
+  {
+   "name": "other_country_tail",
+   "location": "1 Fixture Way, Fixtureville, EX 00001, Canada",
+   "expected": {
+    "city": null
+   }
+  },
+  {
+   "name": "empty_string",
+   "location": "",
+   "expected": {
+    "city": null
+   }
+  }
+ ],
+ "destination_cases": [
+  {
+   "name": "snapshot_tpa",
+   "code": "TPA",
+   "expected": {
+    "name": "Tampa",
+    "log": []
+   }
+  },
+  {
+   "name": "override_dfw",
+   "code": "DFW",
+   "expected": {
+    "name": "Dallas",
+    "log": []
+   }
+  },
+  {
+   "name": "empty_municipality_dst",
+   "code": "DST",
+   "expected": {
+    "name": null,
+    "log": [
+     "DESTINATION UNKNOWN DST: empty municipality"
+    ]
+   }
+  },
+  {
+   "name": "unknown_qxa",
+   "code": "QXA",
+   "expected": {
+    "name": null,
+    "log": [
+     "DESTINATION UNKNOWN QXA: not in snapshot or overrides"
+    ]
+   }
+  },
+  {
+   "name": "lowercase_not_trimmed",
+   "code": "tpa",
+   "expected": {
+    "name": null,
+    "log": [
+     "DESTINATION UNKNOWN tpa: not in snapshot or overrides"
+    ]
+   }
+  }
+ ]
+}

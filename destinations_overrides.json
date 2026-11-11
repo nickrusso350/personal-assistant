@@ -1,0 +1,6 @@
+{
+ "about": "Spoken-destination overrides for the weekly video (ruled 2026-11-10; built 2026-11-11). IATA code -> the city as it should be spoken. Read before destinations_airports.csv; an entry here wins. Keep it small: an entry is for a snapshot municipality that reads wrong aloud, never a copy of the snapshot. DFW pending Nick (snapshot municipality is 'Dallas-Fort Worth').",
+ "overrides": {
+  "DFW": "Dallas"
+ }
+}
