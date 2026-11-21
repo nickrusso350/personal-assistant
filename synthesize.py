@@ -64,6 +64,7 @@ import time as _time
 from datetime import date, timedelta
 
 import anthropic
+import httpx
 
 from airports import lookup as airport_zone
 from env_loader import load_env_file
@@ -72,6 +73,10 @@ MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 4000
 RETRIES = 3
 BACKOFF_SECONDS = (1, 3)
+# Ruled 2026-11-12, built 2026-11-21: 90 s per synthesis call; connect stays at the SDK's 5 s.
+API_TIMEOUT = httpx.Timeout(90.0, connect=5.0)
+# Ruled 2026-11-21: the RETRIES loop in synthesize() is the only retry; the SDK's own are off.
+SDK_MAX_RETRIES = 0
 
 DO_KINDS = ("todo", "attention")
 HAPPEN_KINDS = ("event", "appointment")
@@ -812,8 +817,12 @@ def _call_model(prompt, log=True):
     preamble did not stop it. A PREAMBLE line in digest.out is therefore
     expected, not an alarm - it measures how much reasoning the model wanted.
 
-    Otherwise extract.py's house style: same client, same model, bare
-    messages.create, strip-fence guard, JSON parse raising ValueError.
+    Otherwise extract.py's house style: same model, bare messages.create,
+    strip-fence guard, JSON parse raising ValueError. The client differs in
+    its arguments only (ruled 2026-11-12 and 2026-11-21): timeout=API_TIMEOUT
+    (90 s) and max_retries=SDK_MAX_RETRIES (0), so the RETRIES loop in
+    synthesize() is the only retry and a hung call raises APITimeoutError
+    into it. The read timeout is a wait between bytes, not a total.
 
     WITHDRAWN WITH EVIDENCE (2026-09-04): an assistant prefill of "{" was
     ruled, built, and proven unimplementable on this model. The API rejects it
@@ -831,7 +840,7 @@ def _call_model(prompt, log=True):
     change.
     """
     load_env_file()
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(timeout=API_TIMEOUT, max_retries=SDK_MAX_RETRIES)
     response = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,

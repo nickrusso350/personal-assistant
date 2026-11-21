@@ -502,3 +502,27 @@ Ruled 2026-11-07 against the persisted grouping shape (all on Claude's recommend
   their selection and order.
 - Set on record: 46 backfill + 12 live files; the 11/10 figure "102"
   does not reconcile against anything on disk.
+
+## Rulings 2026-11-12 (API timeouts; spoof TO DO)
+
+- Finding: the 11/12 07:00 page was eleven minutes late. The whole delay was extraction (618 s, zero failures). The three API clients were bare constructors on SDK defaults: 600 s read timeout, 2 silent retries. Hypothesis on record, a fit and not a proof: one call hung to 600 s and succeeded on a silent retry.
+- Ruled: explicit timeouts on all three clients together with per-call timestamps in extraction. The timeout caps what a hang costs; the timestamps make a hang provable. Neither alone closes both gaps.
+- Ruled: 30 seconds for extraction (both files), 90 seconds for synthesis.
+- These calls are reads. A retry here does not touch the ruling that timeouts on writes raise and never retry.
+- Rates are computed over newly extracted items, never fetched items. Processed items are skipped, so fetched counts overstate the work by up to an order of magnitude.
+- Ruled: a cold-outreach email from a spoofed sender rendering as a TO DO is left as built. The email asks for a reply, so the extractor did its job; the page cannot judge a sender. Reopen trigger: unsolicited-sender TO DOs becoming common. The sender deny-list stays parked.
+
+## Rulings 2026-11-21 (timeout build)
+
+- Read confirmed: one API call per new item, sequential, in both loops (digest.py process_messages, process_texts). A call that raises leaves its item unprocessed for the next morning, within the two-day fetch window.
+- Ruled: SDK retries off (max_retries=0) for synthesis only. Its own RETRIES loop is the chosen retry; stacking the SDK's two under each attempt gave nine requests at ten minutes each. Worst case is now 3 x 90 s plus backoff, then SYNTHESIS FALLBACK. Cost on record: BACKOFF_SECONDS is (1, 3), so a one-minute service overload reaches the fallback page sooner than before.
+- Extraction keeps the SDK's two retries: a hung call costs 30 s, or 90 s if all three attempts hang.
+- Ruled: the per-call line is "EXTRACT CALL <mail|text> <k>/<n> <seconds>s <ok|failed ExceptionClass>", printed from digest.py at the two call sites. No id, guid, subject, sender or body. Timeouts are set inside the three functions, never threaded through signatures.
+- Ruled: STAGE reminders-write after write_back. The synthesis to PRE-SEND gap ran 9 s (11/16), 48 s (11/17) and 54 s (11/21) with nothing timing it; write_back is the only step there that can take tens of seconds.
+- Ruled: proof is offline and self-authored, never a live hang: constructor arguments asserted at all three sites; a timed-out call leaves its item unprocessed and the loop continues; one real timeout against a local server on 127.0.0.1 that accepts and never answers.
+- Wart on record: the calendar fetch took 43 s on 11/21 against a usual 1 s. No Google call sets a timeout in this repo. Out of scope here; it belongs to the unruled fetch-retry design. Reopen trigger: a second slow fetch.
+- Open ritual, 11/13 through 11/21: nine paired mornings, both err files at 0, extraction between 0.8 and 4.7 s per new item. No second slow morning.
+- Limit on record: the read timeout is a wait between bytes, not a total (httpx sets it per socket read). A reply that trickles is not capped by the 30 s or the 90 s; only silence is.
+- The `ok` on an `EXTRACT CALL text` line describes the call, not the item: the timer and the outcome cover `extract_text_commitments` alone, and the gate or the guard can still fail the item afterwards, leaving it unprocessed and listed as a failure in the run summary.
+- `httpx` is pinned in `requirements.txt` (`0.28.1`, the installed version; `anthropic` 0.112.0 requires `httpx<1,>=0.25.0`) because the three modules now import it directly for `httpx.Timeout`, not only through the SDK.
+- Scheduled-path proof: kickstart 2026-11-21 12:06, RUN START paired with PRE-SEND, seven STAGE lines ending reminders-write, one EXTRACT CALL mail line (0.8s ok), digest.err 0, runs 42, exit 0. Not yet seen live: an EXTRACT CALL text line; a non-zero reminders-write interval.

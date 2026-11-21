@@ -1,5 +1,6 @@
 import json
 from datetime import date, datetime, time, timedelta
+from time import monotonic
 from googleapiclient.discovery import build
 from fetch_gmail import get_credentials, fetch_recent_messages
 from fetch_calendar import fetch_upcoming_events, DEFAULT_TZ as HOME_TZ
@@ -18,6 +19,19 @@ HORIZON_DAYS = 7
 TEXT_UNAVAILABLE = "Text source unavailable this morning."
 GROUPINGS_DIR = LOG_PATH.parent / "groupings"
 
+def extract_call(source, position, total, started, outcome):
+    """Print one EXTRACT CALL line per extractor call (ruled 2026-11-21):
+    source (mail or text), the item's position in the fetch list over the
+    list's length, seconds elapsed since started (a time.monotonic reading
+    taken just before the call) to one decimal, and "ok" or "failed
+    <ExceptionClass>". Nothing else — no id, guid, subject, sender or body.
+    Called only from the two call sites below, so the extractor modules
+    never print it. A skipped item makes no call and prints no line. The
+    timestamps make a hung call provable; the timeouts in extract.py and
+    extract_imessage.py cap what one costs (ruled 2026-11-12)."""
+    print(f"EXTRACT CALL {source} {position}/{total} "
+          f"{monotonic() - started:.1f}s {outcome}")
+
 def process_messages(messages, state, today):
     """Fold newly fetched messages into state["commitments"].
 
@@ -31,7 +45,8 @@ def process_messages(messages, state, today):
     skipped = 0
     extracted = 0
     failed = []
-    for msg in messages:
+    total = len(messages)
+    for position_in_fetch, msg in enumerate(messages, 1):
         # Already handled on a previous run — never re-extract.
         if msg["id"] in processed:
             skipped += 1
@@ -39,12 +54,16 @@ def process_messages(messages, state, today):
         if msg["body"] is None:
             skipped += 1
             continue
+        started = monotonic()
         try:
             results = extract_commitments(msg["body"])
-        except Exception:
+        except Exception as error:
+            extract_call("mail", position_in_fetch, total, started,
+                         f"failed {type(error).__name__}")
             # Leave the id out of processed_message_ids so a future run retries.
             failed.append(msg["subject"] or "(no subject)")
             continue
+        extract_call("mail", position_in_fetch, total, started, "ok")
         # Extraction succeeded: remember the message and fold in every commitment.
         processed.append(msg["id"])
         extracted += 1
@@ -93,15 +112,24 @@ def process_texts(texts, state, today):
     skipped = 0
     extracted = 0
     failed = []
-    for text in texts:
+    total = len(texts)
+    for position_in_fetch, text in enumerate(texts, 1):
         seen_key = f"imsg:{text['guid']}"
         if seen_key in processed:
             skipped += 1
             continue
         try:
             anchor = datetime.fromisoformat(text["ts"])
-            results = extract_text_commitments(text["text"], text["sender"],
-                                               anchor, text["context"])
+            # The timer covers the extractor call alone, not gate or guard.
+            started = monotonic()
+            try:
+                results = extract_text_commitments(text["text"], text["sender"],
+                                                   anchor, text["context"])
+            except Exception as error:
+                extract_call("text", position_in_fetch, total, started,
+                             f"failed {type(error).__name__}")
+                raise
+            extract_call("text", position_in_fetch, total, started, "ok")
             survivors = []
             for position, item in enumerate(results):
                 for kept in apply_window_guard(apply_what_gate([item]), anchor):
@@ -973,8 +1001,10 @@ def stage(name):
     """Print one STAGE line as a stage finishes (ruled 2026-10-30): the stage
     name and RUN START's timestamp form, nothing else — no data, no counts.
     Called only from run_digest and fetch_inputs, so a library module never
-    prints it. Six names, in code order: gmail-fetch, calendar-fetch,
-    imessage-fetch, extraction, reconcile, synthesis."""
+    prints it. Seven names, in code order: gmail-fetch, calendar-fetch,
+    imessage-fetch, extraction, reconcile, synthesis, reminders-write (the
+    seventh ruled 2026-11-21: write_back is the only step between synthesis
+    and PRE-SEND that can take tens of seconds, and nothing timed it)."""
     print(f"STAGE {name} {datetime.now().isoformat(timespec='seconds')}")
 
 def fetch_inputs():
@@ -1077,6 +1107,7 @@ def run_digest():
     }
     write_grouping(grouping, today)
     write_back(state, attention, todo, grouping=grouping)
+    stage("reminders-write")
 
     notes = (TEXT_UNAVAILABLE,) if text_failed else ()
     title, full_body = build_digest(state, events, today, partition=partition,

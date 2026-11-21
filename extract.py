@@ -1,8 +1,12 @@
 import anthropic
+import httpx
 import json
 from datetime import date
 
 from env_loader import load_env_file
+
+# Ruled 2026-11-12, built 2026-11-21: 30 s per extraction call; connect stays at the SDK's 5 s.
+API_TIMEOUT = httpx.Timeout(30.0, connect=5.0)
 
 # ─── The extraction brain ───────────────────────────────────────
 def extract_commitments(message):
@@ -61,7 +65,7 @@ Message:
 {message}
 \"\"\"""".format(message=message, today=today)
     load_env_file()
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(timeout=API_TIMEOUT)
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=600,

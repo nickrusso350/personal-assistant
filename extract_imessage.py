@@ -1,16 +1,18 @@
 """Extract commitments from one text message. Sibling of extract.py.
 
 Written 2026-10-05 for the iMessage-as-source design table (ruled 2026-10-04).
-NOT on the 07:00 path: nothing the scheduled run imports imports this module,
-and it stays that way until the fetch stage is built and wired by ruling.
+On the 07:00 path since the 2026-10-10 wiring: digest.py imports
+extract_text_commitments, apply_what_gate and apply_window_guard, and
+process_texts calls them once per new allowlisted text.
 
 What is shared with extract.py, deliberately:
   - The output schema, byte-identical: a list of
     {"type", "what", "date", "time", "action_needed"}. State, synthesis, the
     renderer and Reminders consume it; it must not fork (ruled 2026-10-04).
-  - The call and the parse guard: load_env_file(), anthropic.Anthropic(),
-    claude-sonnet-4-6, max_tokens 600, code-fence strip, JSON parse, bare
-    object wrapped in a list.
+  - The call and the parse guard: load_env_file(), an anthropic.Anthropic
+    client built with timeout=API_TIMEOUT (30 s, ruled 2026-11-12; the SDK's
+    two retries left on), claude-sonnet-4-6, max_tokens 600, code-fence
+    strip, JSON parse, bare object wrapped in a list.
   - The field rules, verbatim, except the clock-hour convention appended to
     the "time" rule (ruled 2026-10-09).
 
@@ -42,12 +44,16 @@ joiner word before it, and logs one WHAT SANITIZED line; a title left empty
 drops its item. Order is gate, then guard, in the harness and in production.
 """
 import anthropic
+import httpx
 import json
 import re
 import string
 from datetime import date, datetime
 
 from env_loader import load_env_file
+
+# Ruled 2026-11-12, built 2026-11-21: 30 s per extraction call; connect stays at the SDK's 5 s.
+API_TIMEOUT = httpx.Timeout(30.0, connect=5.0)
 
 # Placeholder (ruled 2026-10-05); re-set from measurement against real threads.
 GUARD_DAYS = 120
@@ -172,7 +178,7 @@ def extract_text_commitments(message, sender, anchor_ts, context):
     schema. Returns [] when the message completes no commitment."""
     prompt = build_prompt(message, sender, anchor_ts, context)
     load_env_file()
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(timeout=API_TIMEOUT)
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=600,
