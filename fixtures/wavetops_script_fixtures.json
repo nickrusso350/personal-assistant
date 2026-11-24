@@ -1,0 +1,2361 @@
+{
+ "about": "Wave-tops script fixtures (ruled 2026-11-23). Self-authored: every name, code, place and address is invented (QXA-QXD are not airport codes in the snapshot); dates are synthetic, run date Sunday 2027-03-07, all inside standard time. Records are in the persisted grouping (_log_records) shape. 'overrides' is the in-memory destination table test_wavetops_script.py swaps in for the run and restores after; no file is written. 'cases' run through wavetops.script(); 'line_cases' feed one fact-sheet row to wavetops._line for rows select() cannot reach. Expectations are pinned from a captured run Nick read, never typed ahead of it.",
+ "overrides": {
+  "QXB": "Fixtureville",
+  "QXC": "Sample City"
+ },
+ "cases": [
+  {
+   "name": "flight_dest_eastern",
+   "clause": "flight row: <Day> at <time>, flight to <destination>. Eastern stored zone, no word; minutes zero -> '5 PM'.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "flight_no_dest_identifier",
+   "clause": "flight, no dest: a FLIGHT-identifier group with no route pair. '5:26 PM' keeps its minutes. Logs DROPPED no route pair.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "17:26",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture Air departure",
+      "location": "",
+      "identifiers": [
+       "FLIGHT 123"
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 5:26 PM, flight."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups",
+     "WAVETOPS DESTINATION DROPPED no route pair"
+    ]
+   }
+  },
+  {
+   "name": "flight_unknown_code",
+   "clause": "A destination code in neither table: flight with no destination; DESTINATION UNKNOWN then DROPPED unknown code.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "07:00",
+      "zone": "America/New_York",
+      "end_time": "09:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXD",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 7 AM, flight."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups",
+     "DESTINATION UNKNOWN QXD: not in snapshot or overrides",
+     "WAVETOPS DESTINATION DROPPED unknown code"
+    ]
+   }
+  },
+  {
+   "name": "meeting_eastern_and_noon",
+   "clause": "meeting row, Eastern, no word, no place spoken. Second meeting at 12:00 -> '12 PM'.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "12:00",
+      "zone": "America/New_York",
+      "end_time": "12:30",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Sample lunch",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 9 AM, Fixture review.",
+     "Monday at 12 PM, Sample lunch."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "meeting_central_stored",
+   "clause": "Non-Eastern stored zone, no render zone: the word is spoken.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:30",
+      "zone": "America/Chicago",
+      "end_time": "11:30",
+      "end_zone": "America/Chicago",
+      "end_date": null,
+      "summary": "Fixture standup",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10:30 AM Central, Fixture standup."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "meeting_eastern_not_new_york",
+   "clause": "An Eastern item whose IANA key is not New York (Detroit): no word - the test is on the word.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:30",
+      "zone": "America/Detroit",
+      "end_time": "11:30",
+      "end_zone": "America/Detroit",
+      "end_date": null,
+      "summary": "Fixture standup",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10:30 AM, Fixture standup."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "meeting_convert_render_zone",
+   "clause": "Zoned clock, both render zones admit: CONVERT. 14:00 New York -> '1 PM Central'.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": "America/Chicago",
+      "end_render_zone": "America/Chicago",
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "14:00",
+      "zone": "America/New_York",
+      "end_time": "15:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture offsite",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Wednesday at 1 PM Central, Fixture offsite."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "meeting_convert_all_or_nothing",
+   "clause": "Zoned clock with an end, end_render_zone null: no convert, stored zone stands -> '2 PM', no word.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": "America/Chicago",
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "14:00",
+      "zone": "America/New_York",
+      "end_time": "15:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture offsite",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Wednesday at 2 PM, Fixture offsite."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "flight_bare_clock_labeled",
+   "clause": "Bare gmail clock, render zone admits: LABEL, digits unchanged -> '8:05 AM Pacific'.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": "America/Los_Angeles",
+      "end_render_zone": "America/New_York",
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "commitment",
+       "fx-r1:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-11",
+      "time": "08:05",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Thursday at 8:05 AM Pacific, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "flight_bare_clock_no_zone",
+   "clause": "Bare gmail clock, no render zone: spoken bare.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "commitment",
+       "fx-r1:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-11",
+      "time": "08:05",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Thursday at 8:05 AM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "zone_unknown_utc_moves_weekday",
+   "clause": "Stored UTC has no word: converted to Eastern, spoken bare, logged. 01:00 UTC Wednesday is 8 PM Tuesday - the weekday follows the converted instant.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "01:00",
+      "zone": "UTC",
+      "end_time": "02:00",
+      "end_zone": "UTC",
+      "end_date": null,
+      "summary": "Fixture call-in",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 8 PM, Fixture call-in."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups",
+     "WAVETOPS ZONE UNKNOWN UTC"
+    ]
+   }
+  },
+  {
+   "name": "zone_unknown_phoenix",
+   "clause": "America/Phoenix is out of the table by ruling: 10:00 there -> '12 PM' Eastern, bare, logged.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "10:00",
+      "zone": "America/Phoenix",
+      "end_time": "11:00",
+      "end_zone": "America/Phoenix",
+      "end_date": null,
+      "summary": "Fixture site visit",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Wednesday at 12 PM, Fixture site visit."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups",
+     "WAVETOPS ZONE UNKNOWN America/Phoenix"
+    ]
+   }
+  },
+  {
+   "name": "journey_chain_final_destination",
+   "clause": "Two-leg chain: one sentence, the first leg's clock in its STORED zone (render_zone is ignored on a journey - set wrong on purpose), the last leg's destination. Arrival never spoken.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1",
+       "r2"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": "America/Los_Angeles",
+      "end_render_zone": "America/Los_Angeles",
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": "America/Chicago",
+      "end_time": "12:00",
+      "end_zone": "America/Chicago",
+      "end_date": null,
+      "summary": "QXA to QXC",
+      "location": "2 Sample Airport Rd, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "14:00",
+      "zone": "America/Denver",
+      "end_time": "16:00",
+      "end_zone": "America/Denver",
+      "end_date": null,
+      "summary": "QXC to QXB",
+      "location": "3 Sample Airport Rd, Sample City, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10 AM Central, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "chain_plus_twin_first_leg",
+   "clause": "Ruled addition 2026-11-23, rule amended the same day: a two-leg chain plus a bare-clock twin of the first leg. Identical pairs dedupe to their first zoned member, the two zoned legs chain, and the twin's pair is already a leg, so the chain's final destination is spoken. (First rule: 'pairs disagree', no destination.)",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1",
+       "r2",
+       "r3"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": "America/New_York",
+      "end_time": "12:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXC",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "14:00",
+      "zone": "America/New_York",
+      "end_time": "16:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXC to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "commitment",
+       "fx-r3:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXC",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10 AM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "chain_plus_bare_end_to_end",
+   "clause": "The shape the read found (9 group-mornings): two zoned legs plus a bare-clock copy naming the whole itinerary, origin to final destination. The left-over pair equals the chain's (origin, final destination), so it is accepted and the final destination is spoken.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1",
+       "r2",
+       "r3"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": "America/New_York",
+      "end_time": "12:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXC",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "14:00",
+      "zone": "America/New_York",
+      "end_time": "16:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXC to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "commitment",
+       "fx-r3:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10 AM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "chain_plus_unrelated_pair",
+   "clause": "Negative: two zoned legs plus a bare-clock pair that is neither a chain leg nor the end-to-end pair. Stays dropped: DROPPED pairs disagree, no destination.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1",
+       "r2",
+       "r3"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": "America/New_York",
+      "end_time": "12:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXC",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "14:00",
+      "zone": "America/New_York",
+      "end_time": "16:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXC to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "commitment",
+       "fx-r3:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXD",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10 AM, flight."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups",
+     "WAVETOPS DESTINATION DROPPED pairs disagree"
+    ]
+   }
+  },
+  {
+   "name": "twin_copies_same_pair",
+   "clause": "Twin copies of one leg, one zoned and one bare: every pair identical -> that destination.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1",
+       "r2"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": "America/New_York",
+      "end_time": "12:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "commitment",
+       "fx-r2:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-09",
+      "time": "10:00",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 10 AM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "chain_round_trip",
+   "clause": "A chain whose final destination equals its first origin: no destination, DROPPED round trip.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1",
+       "r2"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "08:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "18:00",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXB to QXA",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Tuesday at 8 AM, flight."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups",
+     "WAVETOPS DESTINATION DROPPED round trip"
+    ]
+   }
+  },
+  {
+   "name": "flight_no_time",
+   "clause": "A travel primary with no clock: '<Day>, flight to <destination>.' and '<Day>, flight.'",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-11",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-12",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "Fixture Air departure",
+      "location": "",
+      "identifiers": [
+       "FLIGHT 123"
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Thursday, flight to Fixtureville.",
+     "Friday, flight."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups",
+     "WAVETOPS DESTINATION DROPPED no route pair"
+    ]
+   }
+  },
+  {
+   "name": "title_swaps",
+   "clause": "Swaps, whole token only: 'w/' -> with, 'Re:' -> regarding; 'w/Fixture' is one token and does not swap (pinned near-miss).",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Lunch w/ Fixture Team",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Re: Fixture plan",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Sync w/Fixture",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 9 AM, Lunch with Fixture Team.",
+     "Tuesday at 9 AM, regarding Fixture plan.",
+     "Wednesday at 9 AM, Sync w/Fixture."
+    ],
+    "log": [
+     "WAVETOPS SELECT 3 of 3 groups"
+    ]
+   }
+  },
+  {
+   "name": "title_cleaning",
+   "clause": "Trailing whitespace and . ? ! stripped, internal whitespace and a newline collapsed, one period. An empty title and a punctuation-only title are 'untitled event' - never dropped.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture   planning\nsession?!  ",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "?!.",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 9 AM, Fixture planning session.",
+     "Tuesday at 9 AM, untitled event.",
+     "Wednesday at 9 AM, untitled event."
+    ],
+    "log": [
+     "WAVETOPS SELECT 3 of 3 groups"
+    ]
+   }
+  },
+  {
+   "name": "calendar_order_differs_from_rank",
+   "clause": "Rank: the Friday flight, then the 4-hour Thursday meeting, then the 1-hour Monday meeting. Spoken in calendar order: Monday, Thursday, Friday.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-11",
+      "time": "13:00",
+      "zone": "America/New_York",
+      "end_time": "17:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture workshop",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-12",
+      "time": "07:00",
+      "zone": "America/New_York",
+      "end_time": "09:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 9 AM, Fixture review.",
+     "Thursday at 1 PM, Fixture workshop.",
+     "Friday at 7 AM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 3 of 3 groups"
+    ]
+   }
+  },
+  {
+   "name": "same_date_zoned_before_bare",
+   "clause": "Re-ruled 2026-11-23 after the read: within one spoken day clocked items go by their spoken (hour, minute), so the bare 6 AM flight is spoken before the zoned 11 PM one. The case keeps its name; the 11/07 zoned-before-bare tail it first pinned now lives only in select() and _chrono_key.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "commitment",
+       "fx-r1:0"
+      ],
+      "kind": "appointment",
+      "source": "gmail",
+      "date": "2027-03-10",
+      "time": "06:00",
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "23:00",
+      "zone": "America/New_York",
+      "end_time": "23:59",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXC",
+      "location": "",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Wednesday at 6 AM, flight to Fixtureville.",
+     "Wednesday at 11 PM, flight to Sample City."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "mixed_zone_same_day",
+   "clause": "Accepted consequence, on record 2026-11-23: on one day the order is the order of the clocks as heard. '9 AM Pacific' is spoken before '10 AM' Eastern although it happens two hours later, and although it is second in the file.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "10:00",
+      "zone": "America/New_York",
+      "end_time": "11:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "09:00",
+      "zone": "America/Los_Angeles",
+      "end_time": "10:00",
+      "end_zone": "America/Los_Angeles",
+      "end_date": null,
+      "summary": "Fixture call",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Wednesday at 9 AM Pacific, Fixture call.",
+     "Wednesday at 10 AM, Fixture review."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "six_becomes_five",
+   "clause": "Five placed meetings fill the cap and lodging proves a trip: the trip line takes one of the five, and the lowest-ranked (shortest, r5) meeting is dropped. WAVETOPS CAP DROPPED 1.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r4"
+      ],
+      "primary": "r4",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r5"
+      ],
+      "primary": "r5",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r6"
+      ],
+      "primary": "r6",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "14:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture session one",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "13:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture session two",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "12:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture session three",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r4",
+      "ref": [
+       "event",
+       "fx-r4",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-11",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "11:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture session four",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r5",
+      "ref": [
+       "event",
+       "fx-r5",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-12",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture session five",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r6",
+      "ref": [
+       "event",
+       "fx-r6",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": "2027-03-11",
+      "summary": "Fixture Inn",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 9 AM, Fixture session one.",
+     "Traveling to Fixtureville, Tuesday through Thursday.",
+     "Tuesday at 9 AM, Fixture session two.",
+     "Wednesday at 9 AM, Fixture session three.",
+     "Thursday at 9 AM, Fixture session four."
+    ],
+    "log": [
+     "WAVETOPS SELECT 5 of 6 groups",
+     "WAVETOPS CAP DROPPED 1"
+    ]
+   }
+  },
+  {
+   "name": "trip_through",
+   "clause": "no-flight trip, several days inside the window: Traveling to <destination>, <Day> through <Day>.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": "2027-03-11",
+      "summary": "Fixture Inn",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Traveling to Fixtureville, Tuesday through Thursday."
+    ],
+    "log": [
+     "WAVETOPS SELECT 0 of 1 groups: no vital groups"
+    ]
+   }
+  },
+  {
+   "name": "trip_one_day",
+   "clause": "no-flight trip, one day: Traveling to <destination> on <Day>.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "Fixture Inn",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Traveling to Fixtureville on Wednesday."
+    ],
+    "log": [
+     "WAVETOPS SELECT 0 of 1 groups: no vital groups"
+    ]
+   }
+  },
+  {
+   "name": "trip_past_window",
+   "clause": "Last date past run_date + 6: Traveling to <destination> from <Day>.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-12",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": "2027-03-16",
+      "summary": "Fixture Inn",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Traveling to Fixtureville from Friday."
+    ],
+    "log": [
+     "WAVETOPS SELECT 0 of 1 groups: no vital groups"
+    ]
+   }
+  },
+  {
+   "name": "trip_no_destination",
+   "clause": "Lodging whose location has no ', City, ST' tail: the same line without 'to <destination>'; DROPPED no single lodging city.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": "2027-03-11",
+      "summary": "Fixture Inn",
+      "location": "Fixture Inn front desk",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Traveling, Tuesday through Thursday."
+    ],
+    "log": [
+     "WAVETOPS SELECT 0 of 1 groups: no vital groups",
+     "WAVETOPS DESTINATION DROPPED no single lodging city"
+    ]
+   }
+  },
+  {
+   "name": "trip_before_timed_same_day",
+   "clause": "The trip line is spoken before a timed item on its first day, and after an earlier day's item.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": "2027-03-10",
+      "summary": "Fixture Inn",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "08:00",
+      "zone": "America/New_York",
+      "end_time": "09:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture breakfast",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "15:00",
+      "zone": "America/New_York",
+      "end_time": "16:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 3 PM, Fixture review.",
+     "Traveling to Fixtureville, Tuesday through Wednesday.",
+     "Tuesday at 8 AM, Fixture breakfast."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 3 groups"
+    ]
+   }
+  },
+  {
+   "name": "clear_week",
+   "clause": "Nothing chosen and no trip: greeting plus the clear-week line (supersedes the 10/30 no-video rule). A task and an out-of-window meeting are both out.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "commitment",
+       "fx-r1:0"
+      ],
+      "kind": "todo",
+      "source": "gmail",
+      "date": "2027-03-09",
+      "time": null,
+      "zone": null,
+      "end_time": null,
+      "end_zone": null,
+      "end_date": null,
+      "summary": "Fixture form due",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-20",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "The week ahead is clear."
+    ],
+    "log": [
+     "WAVETOPS SELECT 0 of 2 groups: no vital groups"
+    ]
+   }
+  },
+  {
+   "name": "fallback_grouping",
+   "clause": "groups null: no script ([]), and select()'s one WAVETOPS SELECT line carries the cause.",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": null,
+    "cause": "network",
+    "records": []
+   },
+   "expected": {
+    "lines": [],
+    "log": [
+     "WAVETOPS SELECT 0 of 0 groups: fallback: network"
+    ]
+   }
+  }
+ ],
+ "line_cases": [
+  {
+   "name": "meeting_no_time",
+   "clause": "Ruled 2026-11-23, unreachable from select() today (an all-day placed event is lodging): <Day>, <title>.",
+   "row": {
+    "kind": "meeting",
+    "weekday": "Monday",
+    "time": null,
+    "zone": null,
+    "destination": null,
+    "title": "Fixture review",
+    "through": null,
+    "open_ended": false
+   },
+   "expected": "Monday, Fixture review."
+  },
+  {
+   "name": "trip_one_day_no_destination",
+   "clause": "Traveling on <Day>.",
+   "row": {
+    "kind": "trip",
+    "weekday": "Monday",
+    "time": null,
+    "zone": null,
+    "destination": null,
+    "title": null,
+    "through": null,
+    "open_ended": false
+   },
+   "expected": "Traveling on Monday."
+  },
+  {
+   "name": "trip_past_window_no_destination",
+   "clause": "Traveling from <Day>.",
+   "row": {
+    "kind": "trip",
+    "weekday": "Monday",
+    "time": null,
+    "zone": null,
+    "destination": null,
+    "title": null,
+    "through": null,
+    "open_ended": true
+   },
+   "expected": "Traveling from Monday."
+  },
+  {
+   "name": "meeting_with_zone_word",
+   "clause": "<Day> at <time> <Zone>, <title>.",
+   "row": {
+    "kind": "meeting",
+    "weekday": "Monday",
+    "time": "5:26 PM",
+    "zone": "Hawaii",
+    "destination": null,
+    "title": "Fixture review",
+    "through": null,
+    "open_ended": false
+   },
+   "expected": "Monday at 5:26 PM Hawaii, Fixture review."
+  }
+ ]
+}

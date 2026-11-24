@@ -1,0 +1,10 @@
+{
+  "about": "Spoken-title swaps for the weekly video (ruled 2026-11-23). Exact, whole token only: a token is a run bounded by whitespace or a string edge, compared byte for byte. Display-only, applied to titles in wavetops.script(). A longer token that merely begins with an entry (w/Name) does not swap.",
+  "swaps": {
+    "w/": "with",
+    "W/": "with",
+    "re:": "regarding",
+    "Re:": "regarding",
+    "RE:": "regarding"
+  }
+}

@@ -32,8 +32,25 @@ Ruled 2026-11-07 against the persisted grouping shape
 - Log lines: WAVETOPS SELECT <k> of <n> groups; on zero,
   WAVETOPS SELECT 0 of <n> groups: <reason>.
 
-Pure: no file or network I/O, no model call, deterministic. The one side
-effect is the single WAVETOPS SELECT line, printed by select() on every call.
+select() and no_flight_trip() are pure: no file or network I/O, no model
+call, deterministic. select()'s one side effect is the single WAVETOPS
+SELECT line, printed on every call.
+
+The script (ruled 2026-11-23): code writes every sentence from fixed
+patterns; there is no model call. fact_sheet() turns one select() call and
+one no_flight_trip() call into one row of facts per spoken item, and
+script() words the rows. One sentence per journey - weekday, departure
+time, final destination; arrival is never spoken. The clock and zone mirror
+the page (label vs convert, 2026-09-27); the zone is spoken as a word, and
+only outside Eastern. Titles are cleaned and pass through
+wavetops_swaps.json, whole tokens only. select()'s ranking decides the cut;
+the lines are spoken in calendar order. A week with nothing chosen and no
+trip is "The week ahead is clear." - this supersedes the 10/30 "zero vital
+-> no video" line above. A fallback grouping has no script. The script path
+reads two data files beside this module (the swap file; the destination
+tables through destinations.py) and prints WAVETOPS DESTINATION DROPPED,
+WAVETOPS ZONE UNKNOWN and WAVETOPS CAP DROPPED lines; it writes nothing.
+handoff() is not built.
 
 Ruled 2026-11-07 (Section 2 review):
 - (1) TASK_KINDS is ("todo", "attention"); "appointment" and "event" are
@@ -59,15 +76,90 @@ Ruled 2026-11-07 (Section 2 review):
   trigger: two same-day legs reading out of order.
 """
 
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+import json
+from datetime import date, datetime, time, timedelta
+from functools import cache
+from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from synthesize import codes_only, route_pair
+from synthesize import _is_journey, codes_only, route_chain, route_pair
 
 CAP = 5
 WINDOW_DAYS = 7          # run_date through run_date + 6
 TASK_KINDS = ("todo", "attention")
 MINUTES_PER_DAY = 24 * 60
+
+# Home, as an IANA key (ruled 2026-11-23). A clock whose zone has no spoken
+# word is converted here and spoken bare. A constant, because this module
+# does not import digest; the other place home is set is digest's HOME_TZ
+# (fetch_calendar.DEFAULT_TZ). The home zone is fixed in both.
+EASTERN = "America/New_York"
+
+# IANA key -> the zone as a spoken word (ruled 2026-11-23). An exact table,
+# no scoring. The word is spoken only when it is not "Eastern": the test is
+# on the word, never on the key, so a Detroit clock is spoken bare. A key
+# not listed here (UTC, Phoenix, anything abroad) is converted to EASTERN,
+# spoken with no word, and logged WAVETOPS ZONE UNKNOWN <key>.
+# America/Phoenix is left out by ruling: "Mountain" by name, Pacific's
+# offset in summer.
+ZONE_WORDS = {
+    "America/New_York": "Eastern",
+    "America/Detroit": "Eastern",
+    "America/Kentucky/Louisville": "Eastern",
+    "America/Kentucky/Monticello": "Eastern",
+    "America/Indiana/Indianapolis": "Eastern",
+    "America/Chicago": "Central",
+    "America/Denver": "Mountain",
+    "America/Boise": "Mountain",
+    "America/Los_Angeles": "Pacific",
+    "America/Anchorage": "Alaska",
+    "Pacific/Honolulu": "Hawaii",
+}
+
+WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+            "Saturday", "Sunday")
+SWAPS_FILE = Path(__file__).resolve().parent / "wavetops_swaps.json"
+UNTITLED = "untitled event"
+
+
+def _weekday(day):
+    """The weekday as a word, from a date. A fixed tuple, not strftime, so
+    the word never depends on the process locale."""
+    return WEEKDAYS[day.weekday()]
+
+
+def _spoken_clock(clock):
+    """A time as spoken (ruled 2026-11-23): 12-hour, "5 PM" when the minutes
+    are zero, "5:26 PM" otherwise. No rounding. Takes anything with .hour
+    and .minute."""
+    hour = clock.hour % 12 or 12
+    meridiem = "AM" if clock.hour < 12 else "PM"
+    if clock.minute == 0:
+        return f"{hour} {meridiem}"
+    return f"{hour}:{clock.minute:02d} {meridiem}"
+
+
+@cache
+def _swaps():
+    """Token -> spoken replacement, loaded once from wavetops_swaps.json."""
+    return json.loads(SWAPS_FILE.read_text(encoding="utf-8"))["swaps"]
+
+
+def _spoken_title(summary):
+    """A record's summary as the title to speak, without its closing period
+    (ruled 2026-11-23). Display-only.
+
+    Split on whitespace, which also collapses runs and newlines to single
+    spaces; swap each whole token found in the swap file, byte for byte
+    ("w/Name" is one token and does not swap); then strip trailing
+    whitespace and . ? !. A title empty after that - "", only punctuation,
+    or not a string - is UNTITLED: the item is never dropped.
+    """
+    if not isinstance(summary, str):
+        return UNTITLED
+    swaps = _swaps()
+    text = " ".join(swaps.get(token, token) for token in summary.split())
+    return text.rstrip(".?! ") or UNTITLED
 
 
 def _is_travel(group, by_id):
@@ -268,9 +360,254 @@ def no_flight_trip(grouping, run_date, chosen):
     return destination, first, last
 
 
-def script(selection):
-    """Write the wave-tops script for a selection (not built)."""
-    raise NotImplementedError
+def _admitted(key):
+    """ZoneInfo for an IANA key, or None when it is absent or does not
+    resolve. Never raises."""
+    if not key or not isinstance(key, str):
+        return None
+    try:
+        return ZoneInfo(key)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
+
+
+def _spoken_when(group, by_id):
+    """(day, clock | None, zone word | None, order) for a chosen group: the
+    page's clock and zone, spoken (ruled 2026-11-23, "mirror the page").
+
+    The clock is the primary's. A journey (synthesize._is_journey, the
+    renderer's own test) speaks the primary's stored zone, as the Departure
+    line does. Any other group follows the 9/27 label-vs-convert rule on the
+    group's render_zone: a zoned clock CONVERTS into it - all or nothing, so
+    a primary carrying an end converts only when end_render_zone admits too
+    - and a bare clock is LABELED with it, digits unchanged. No admitted
+    render zone: the stored zone, or a bare clock with no word.
+
+    The zone word comes from ZONE_WORDS and is None for "Eastern" (the test
+    is on the word). A key with no word is converted to EASTERN, spoken
+    bare, and logged. The day is the day of the clock as spoken, so a
+    convert across midnight moves the weekday with it.
+
+    order is the tail of the calendar-order key within one spoken day (ruled
+    2026-11-23, after the read): no clock first, then every clocked item by
+    its spoken (hour, minute), whatever its zone. The script is heard, so
+    the order is the order of the clocks as heard. This replaces the 11/07
+    zoned-before-bare tail here only; select() and _chrono_key keep it.
+    """
+    primary = by_id[group["primary"]]
+    day = date.fromisoformat(primary["date"])
+    text = primary.get("time")
+    if text is None:
+        return day, None, None, (1, 0, 0)
+    stored = _admitted(primary.get("zone"))
+    render = None
+    if not _is_journey(group["members"], by_id):
+        render = _admitted(group.get("render_zone"))
+    if stored is not None:
+        moment = datetime(day.year, day.month, day.day, *_clock(text), tzinfo=stored)
+        if render is not None and (
+                primary.get("end_time") is None
+                or _admitted(group.get("end_render_zone")) is not None):
+            moment = moment.astimezone(render)
+    elif render is not None:
+        moment = datetime(day.year, day.month, day.day, *_clock(text), tzinfo=render)
+    else:
+        clock = time(*_clock(text))
+        return day, clock, None, (2, clock.hour, clock.minute)
+    word = ZONE_WORDS.get(moment.tzinfo.key)
+    if word is None:
+        print(f"WAVETOPS ZONE UNKNOWN {moment.tzinfo.key}")
+        moment = moment.astimezone(ZoneInfo(EASTERN))
+    return (moment.date(), moment, None if word in (None, "Eastern") else word,
+            (2, moment.hour, moment.minute))
+
+
+def _final_destination(group, by_id):
+    """(code, None) or (None, reason) for a travel group (ruled 2026-11-23;
+    chain rule amended the same day, after the read over 70 files).
+
+    Over the members that yield a route_pair:
+    - Every pair identical -> that pair's destination (twin copies of one
+      leg).
+    - Otherwise identical pairs are deduped to one member each - the first
+      in member order that carries a start instant (date, clock and zone) -
+      and those zoned legs must form a chain (synthesize.route_chain, the
+      11/09 predicate, unchanged). The destination is that of the leg with
+      the latest start instant.
+    - A pair left over - one that only bare-clock members carry - is
+      accepted only when it equals the chain's (origin, final destination):
+      the booking email that names the whole itinerary end to end. A bare
+      twin of a chain leg is not left over; its pair is already a leg.
+      Anything else is "pairs disagree".
+    - A chain that ends where it began has no destination.
+    Byte comparison throughout, no scoring. The reason is one of: no route
+    pair, pairs disagree, round trip.
+
+    A zoned end-to-end pair alongside zoned legs is not accepted: it enters
+    the chain test and fails it (0 instances in the read).
+
+    Basis for the amendment: all 9 "pairs disagree" drops in the read were
+    one trip - two zoned calendar legs plus bare email copies naming the
+    end-to-end pair - which the first rule refused because route_chain
+    needs an instant on every member.
+    """
+    legs = [m for m in group["members"] if route_pair(by_id[m]) is not None]
+    if not legs:
+        return None, "no route pair"
+    pairs = [route_pair(by_id[m]) for m in legs]
+    if len(set(pairs)) == 1:
+        return pairs[0][1], None
+
+    def start(m):
+        r = by_id[m]
+        zone = _admitted(r.get("zone"))
+        if zone is None or not r.get("time") or not r.get("date"):
+            return None
+        d = date.fromisoformat(r["date"])
+        return datetime(d.year, d.month, d.day, *_clock(r["time"]),
+                        tzinfo=zone).timestamp()
+
+    chain = {}                       # pair -> its first zoned member
+    for m, pair in zip(legs, pairs):
+        if pair not in chain and start(m) is not None:
+            chain[pair] = m
+    if len(chain) < 2 or not route_chain(list(chain.values()), by_id):
+        return None, "pairs disagree"
+    ordered = sorted(chain.values(), key=start)
+    origin = route_pair(by_id[ordered[0]])[0]
+    destination = route_pair(by_id[ordered[-1]])[1]
+    if any(pair not in chain and pair != (origin, destination) for pair in pairs):
+        return None, "pairs disagree"
+    if destination == origin:
+        return None, "round trip"
+    return destination, None
+
+
+def fact_sheet(grouping, run_date):
+    """One row per spoken item, in calendar order, or None for a fallback
+    grouping (ruled 2026-11-23). Code decides every fact; script() only
+    words them.
+
+    Calls select() once (its WAVETOPS SELECT line is the fallback's one log
+    line) and no_flight_trip() once. select()'s ranking decides the cut; the
+    trip line counts as one of CAP, so when the selection is already full
+    its lowest-ranked group - the last - is dropped, and logged. Nothing
+    else is ever dropped.
+
+    Each row is a dict with the same keys:
+      kind         "flight" | "meeting" | "trip"
+      weekday      the day spoken (a trip: its first day)
+      time         the spoken clock, or None
+      zone         the zone word, or None (Eastern, bare, or unknown)
+      destination  the spoken city, or None (flight and trip rows)
+      title        the cleaned title (meeting rows), else None
+      through      a trip's last weekday when it differs from the first and
+                   falls inside the window, else None
+      open_ended   True when a trip's last date falls past run_date + 6
+
+    Order: the spoken day; on one day the trip row, then items with no
+    clock, then clocked items by their spoken (hour, minute); file order
+    last. Prints WAVETOPS DESTINATION DROPPED <reason>, WAVETOPS ZONE
+    UNKNOWN <key> and WAVETOPS CAP DROPPED 1 as they occur - never a title,
+    a code or an id (destinations.spoken_destination names an unknown code
+    on its own DESTINATION UNKNOWN line).
+    """
+    chosen, _evidence = select(grouping, run_date)
+    groups = grouping.get("groups")
+    if groups is None:
+        return None
+    from destinations import spoken_destination
+    by_id = {r["id"]: r for r in grouping.get("records") or []}
+    position = {id(g): i for i, g in enumerate(groups)}
+    trip = no_flight_trip(grouping, run_date, chosen)
+    if trip is not None and len(chosen) == CAP:
+        chosen = chosen[:-1]
+        print("WAVETOPS CAP DROPPED 1")
+
+    keyed = []
+    for group in chosen:
+        day, clock, word, order = _spoken_when(group, by_id)
+        row = {"kind": "meeting", "weekday": _weekday(day),
+               "time": None if clock is None else _spoken_clock(clock),
+               "zone": word, "destination": None, "title": None,
+               "through": None, "open_ended": False}
+        if _is_travel(group, by_id):
+            row["kind"] = "flight"
+            code, reason = _final_destination(group, by_id)
+            if code is not None:
+                row["destination"] = spoken_destination(code)
+                if row["destination"] is None:
+                    reason = "unknown code"
+            if reason is not None:
+                print(f"WAVETOPS DESTINATION DROPPED {reason}")
+        else:
+            row["title"] = _spoken_title(by_id[group["primary"]].get("summary"))
+        keyed.append(((day.isoformat(),) + order + (position[id(group)],), row))
+
+    if trip is not None:
+        destination, first, last = trip
+        if destination is None:
+            print("WAVETOPS DESTINATION DROPPED no single lodging city")
+        first_day, last_day = date.fromisoformat(first), date.fromisoformat(last)
+        open_ended = last_day > run_date + timedelta(days=WINDOW_DAYS - 1)
+        through = None if open_ended or last_day == first_day else _weekday(last_day)
+        keyed.append(((first, 0, 0, 0, 0),
+                      {"kind": "trip", "weekday": _weekday(first_day),
+                       "time": None, "zone": None, "destination": destination,
+                       "title": None, "through": through,
+                       "open_ended": open_ended}))
+
+    keyed.sort(key=lambda pair: pair[0])
+    return [row for _, row in keyed]
+
+
+GREETING = "Good Evening Nick."
+CLEAR_WEEK = "The week ahead is clear."
+
+
+def _line(row):
+    """One fact-sheet row as its sentence: one line, exactly one closing
+    period (patterns ruled 2026-11-23).
+
+      flight          <Day> at <time>[ <Zone>], flight to <destination>.
+      flight, no dest <Day> at <time>[ <Zone>], flight.
+      meeting         <Day> at <time>[ <Zone>], <title>.
+      no clock        <Day>, flight to <destination>. / <Day>, flight. /
+                      <Day>, <title>.
+      trip            Traveling to <destination>, <Day> through <Day>.
+        one day       Traveling to <destination> on <Day>.
+        past window   Traveling to <destination> from <Day>.
+        no dest       the same three without "to <destination>".
+    """
+    if row["kind"] == "trip":
+        to = f" to {row['destination']}" if row["destination"] else ""
+        if row["open_ended"]:
+            return f"Traveling{to} from {row['weekday']}."
+        if row["through"]:
+            return f"Traveling{to}, {row['weekday']} through {row['through']}."
+        return f"Traveling{to} on {row['weekday']}."
+    when = row["weekday"]
+    if row["time"]:
+        when += f" at {row['time']}"
+        if row["zone"]:
+            when += f" {row['zone']}"
+    if row["kind"] == "flight":
+        what = f"flight to {row['destination']}" if row["destination"] else "flight"
+    else:
+        what = row["title"]
+    return f"{when}, {what}."
+
+
+def script(grouping, run_date):
+    """The wave-tops script as a list of lines (ruled 2026-11-23): the
+    greeting, then one to five sentences in calendar order - two to six
+    lines. Nothing chosen and no trip: the greeting and the clear-week line.
+    A fallback grouping: [] - no script; select()'s WAVETOPS SELECT line
+    carries the cause. Writes no file."""
+    rows = fact_sheet(grouping, run_date)
+    if rows is None:
+        return []
+    return [GREETING] + ([_line(row) for row in rows] or [CLEAR_WEEK])
 
 
 def handoff(script_text):

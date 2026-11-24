@@ -125,6 +125,9 @@ The production run has no compact render. A digest too long for one Pushover mes
 | | `test_extract_guard.py` | the extraction parse guard (2026-11-01): a reply that is not a list of objects raises, and one failed message leaves the rest of the batch extracted; stub client, in-memory state |
 | | `test_send_push_retry.py` | fourteen cases behind the send-retry boundary (2026-11-07): retry only when the connection never opened or on 5xx; failures built the way `requests` builds them, no waiting, nothing sent |
 | | `test_wavetops.py` | `wavetops.select` on pinned fixtures: the 10/30 selection rule and the 2026-11-07 through 2026-11-11 shape rulings |
+| | `test_wavetops_script.py` | `wavetops.script` on pinned fixtures (2026-11-23): every sentence pattern, the page-mirrored clock and zone word, the destination rule, title cleaning and swaps, calendar order, the six-to-five drop, clear week, fallback. Invented airport codes resolve through an in-memory table the test restores; offline, writes nothing |
+| | `fixtures/wavetops_script_fixtures.json` | the script cases: 32 invented groupings with pinned lines and log lines, plus 4 single-row cases for sentences `select()` cannot reach today |
+| | `wavetops_swaps.json` | data, not a test: the spoken-title swaps `wavetops.script` applies (`w/` → "with", `re:` → "regarding"), exact whole tokens only |
 | | `test_api_timeouts.py` | the API timeouts (2026-11-21): constructor arguments at all three client sites, a timed-out call leaving its item unprocessed while the loop continues, and one real timeout against a silent socket on 127.0.0.1. Offline |
 | | `imessage_fixtures.py` | the text-extraction harness on self-authored cases in `fixtures/imessage_fixtures.json`, with invented handles: offline by default ($0, prompt build, the window guard, the what-gate); `--live` runs one billable extraction per target, then the gate and the guard, and grades both |
 | | `attributed_body_fixtures.py` | `attributed_body.decode` on self-authored blobs ($0, both length forms' edges, both introducers, multibyte, three negatives); `--ground-truth` walks a read-only copy of `chat.db` and prints matched, mismatched and skipped counts, never row content |
@@ -304,6 +307,10 @@ Found on real mornings, documented plainly.
 **Only allowlisted chats are read.** A chat is in scope when every participant is in `IMESSAGE_ALLOWLIST`, compared byte-exact against the stored handle, so one unlisted participant takes a whole group chat out of scope. Reactions and attachment-only messages are skipped.
 
 **A failed text read has one signal.** If `chat.db` cannot be read, the digest still sends, with "Text source unavailable this morning." as its first body line. The watchdog stays silent, because the morning delivered, so that line is the only signal on the phone; `digest.out` carries `IMESSAGE FETCH FAILED`.
+
+**The home zone is fixed.** Home is `America/New_York` in two places: `HOME_TZ` in `digest.py` (from `fetch_calendar.DEFAULT_TZ`) for the page, and `EASTERN` in `wavetops.py` for the weekly script, which speaks a zone word only outside Eastern and converts a zone it has no word for into Eastern. Neither follows the machine or the traveler; a week spent in another zone is still spoken and rendered from Eastern.
+
+**The weekly script speaks titles as typed.** `wavetops.script` builds every sentence from fixed patterns with no model call, so a meeting title is spoken as it was written: capitals, colons, and abbreviations included. The only changes are trailing punctuation, collapsed whitespace, and the whole-token swaps in `wavetops_swaps.json`. A title that carries its own clock is spoken with two clocks, one from the pattern and one from the title.
 
 **Retired 2026-09-14: time conflicts compared clock strings.** One flight stored as 19:30 America/New_York by one writer and 18:30 America/Chicago by another rendered as "sources disagree on time" — one instant under two labels. Fixed in `1cc90a4`: conflicts compare instants, and `test_distinct_times.py` pins the cases. Listed so the record of what was wrong survives the fix.
 
