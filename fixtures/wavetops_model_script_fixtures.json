@@ -1,0 +1,1661 @@
+{
+ "about": "Wave-tops model-script fixtures (ruled 2026-11-24). Self-authored: every name, code, place and address is invented (QXA and QXB are not airport codes in the snapshot); dates are synthetic, run date Sunday 2027-03-07. 'overrides' is the in-memory destination table the test swaps in and restores; no file is written. 'cases' are groupings in the persisted (_log_records) shape, run through wavetops.script() - the pattern writer, which reads the same fact sheet the model writer does - for the rental silence (R2) and its discriminator; their expectations are pinned from a captured run, never typed ahead of it. 'check_cases' feed fact-sheet rows and candidate script lines to wavetops.check_script; their expected reasons are written from the 2026-11-24 rulings before the run.",
+ "overrides": {
+  "QXB": "Fixtureville"
+ },
+ "cases": [
+  {
+   "name": "rental_silent_same_day",
+   "clause": "R2: a rental on a spoken day that has a flight is left off the sheet; logged RENTAL SILENCED 1",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "19:30",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental pick-up: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups",
+     "WAVETOPS RENTAL SILENCED 1"
+    ]
+   }
+  },
+  {
+   "name": "rental_spoken_no_flight",
+   "clause": "R2: no flight in the script - the rental is spoken as a meeting",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "19:30",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental pick-up: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 7:30 PM, Car rental pick-up: Fixture Motors."
+    ],
+    "log": [
+     "WAVETOPS SELECT 1 of 1 groups"
+    ]
+   }
+  },
+  {
+   "name": "rental_spoken_different_day",
+   "clause": "R2 accepted wart: flight Monday, drop-off Tuesday - the rental is spoken",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "08:00",
+      "zone": "America/New_York",
+      "end_time": "08:30",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental drop-off: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville.",
+     "Tuesday at 8 AM, Car rental drop-off: Fixture Motors."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "rental_both_ends_same_day",
+   "clause": "pick-up and drop-off both on the flight's day: both silent, RENTAL SILENCED 2",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "08:00",
+      "zone": "America/New_York",
+      "end_time": "08:30",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental pick-up: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "21:00",
+      "zone": "America/New_York",
+      "end_time": "21:30",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental drop-off: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 3 of 3 groups",
+     "WAVETOPS RENTAL SILENCED 2"
+    ]
+   }
+  },
+  {
+   "name": "rental_silent_at_cap",
+   "clause": "option A: select() returned CAP groups and one is a silenced rental - SILENCED 1 and SILENCED AT CAP 1; the slot is not refilled",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r4"
+      ],
+      "primary": "r4",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r5"
+      ],
+      "primary": "r5",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "19:30",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental pick-up: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-09",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r4",
+      "ref": [
+       "event",
+       "fx-r4",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Sample lunch",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r5",
+      "ref": [
+       "event",
+       "fx-r5",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-11",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Example briefing",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville.",
+     "Tuesday at 9 AM, Fixture review.",
+     "Wednesday at 9 AM, Sample lunch.",
+     "Thursday at 9 AM, Example briefing."
+    ],
+    "log": [
+     "WAVETOPS SELECT 5 of 5 groups",
+     "WAVETOPS RENTAL SILENCED 1",
+     "WAVETOPS RENTAL SILENCED AT CAP 1"
+    ]
+   }
+  },
+  {
+   "name": "rental_prefix_without_token",
+   "clause": "discriminator: begins 'Car rental' but holds neither token - spoken",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "19:30",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville.",
+     "Monday at 7:30 PM, Car rental Fixture Motors."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "rental_token_without_prefix",
+   "clause": "discriminator: holds the whole token drop-off: but does not begin 'Car rental' - spoken",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "15:00",
+      "zone": "America/New_York",
+      "end_time": "15:30",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture drop-off: Sample School",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 3 PM, Fixture drop-off: Sample School.",
+     "Monday at 5 PM, flight to Fixtureville."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "rental_token_not_whole",
+   "clause": "discriminator: 'pick-up:Fixture' is one token, not the whole token pick-up: - spoken",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "19:30",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Car rental pick-up:Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville.",
+     "Monday at 7:30 PM, Car rental pick-up:Fixture Motors."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "rental_prefix_case",
+   "clause": "discriminator: byte comparison - 'car rental' in lower case is not the prefix - spoken",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "19:30",
+      "zone": "America/New_York",
+      "end_time": "20:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "car rental pick-up: Fixture Motors",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 5 PM, flight to Fixtureville.",
+     "Monday at 7:30 PM, car rental pick-up: Fixture Motors."
+    ],
+    "log": [
+     "WAVETOPS SELECT 2 of 2 groups"
+    ]
+   }
+  },
+  {
+   "name": "model_week",
+   "clause": "the grouping the model-writer scenarios run on: two items Monday, one Wednesday in Central",
+   "run_date": "2027-03-07",
+   "grouping": {
+    "groups": [
+     {
+      "members": [
+       "r1"
+      ],
+      "primary": "r1",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r2"
+      ],
+      "primary": "r2",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r3"
+      ],
+      "primary": "r3",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     }
+    ],
+    "cause": null,
+    "records": [
+     {
+      "id": "r1",
+      "ref": [
+       "event",
+       "fx-r1",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture review",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     },
+     {
+      "id": "r2",
+      "ref": [
+       "event",
+       "fx-r2",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-08",
+      "time": "17:00",
+      "zone": "America/New_York",
+      "end_time": "19:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "QXA to QXB",
+      "location": "",
+      "identifiers": []
+     },
+     {
+      "id": "r3",
+      "ref": [
+       "event",
+       "fx-r3",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-10",
+      "time": "14:30",
+      "zone": "America/Chicago",
+      "end_time": "15:30",
+      "end_zone": "America/Chicago",
+      "end_date": null,
+      "summary": "Sample lunch",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
+     }
+    ]
+   },
+   "expected": {
+    "lines": [
+     "Good Evening Nick.",
+     "Monday at 9 AM, Fixture review.",
+     "Monday at 5 PM, flight to Fixtureville.",
+     "Wednesday at 2:30 PM Central, Sample lunch."
+    ],
+    "log": [
+     "WAVETOPS SELECT 3 of 3 groups"
+    ]
+   }
+  }
+ ],
+ "check_cases": [
+  {
+   "name": "good_single",
+   "clause": "the ruled example shape passes",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville."
+   ],
+   "expected": null
+  },
+  {
+   "name": "good_joined_same_day",
+   "clause": "R4: same-day items joined in one sentence pass; one line for two items",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    },
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "On Friday you have a flight at 2:24 PM to Fixtureville and Sample dinner at 5 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "good_reworded_title",
+   "clause": "honest limit: a reworded title is not checked for meaning",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Qtr review with Fixture Co",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have your quarterly review with Fixture Co on Friday at 5 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "good_trip",
+   "clause": "a trip's first and last weekday both occur",
+   "rows": [
+    {
+     "kind": "trip",
+     "weekday": "Monday",
+     "time": null,
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": "Wednesday",
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You are traveling to Fixtureville, Monday through Wednesday."
+   ],
+   "expected": null
+  },
+  {
+   "name": "good_trip_open_ended",
+   "clause": "an open-ended trip has no last day to require",
+   "rows": [
+    {
+     "kind": "trip",
+     "weekday": "Saturday",
+     "time": null,
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": true
+    }
+   ],
+   "lines": [
+    "You are traveling to Fixtureville from Saturday."
+   ],
+   "expected": null
+  },
+  {
+   "name": "missing_clock",
+   "clause": "(a) the clock string is absent",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight to Fixtureville."
+   ],
+   "expected": "check a clock"
+  },
+  {
+   "name": "clock_inside_longer",
+   "clause": "(a) whole token: '5 PM' is not found inside '12:15 PM'",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have Sample dinner on Friday at 12:15 PM."
+   ],
+   "expected": "check a clock"
+  },
+  {
+   "name": "clock_reformatted",
+   "clause": "(a) the clock is copied exactly: 'p.m.' is not 'PM'",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 p.m. to Fixtureville."
+   ],
+   "expected": "check a clock"
+  },
+  {
+   "name": "missing_weekday",
+   "clause": "(a) the weekday is absent",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a flight at 2:24 PM to Fixtureville."
+   ],
+   "expected": "check a weekday"
+  },
+  {
+   "name": "missing_zone",
+   "clause": "(a) the zone word is absent",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": "Central",
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville."
+   ],
+   "expected": "check a zone"
+  },
+  {
+   "name": "missing_destination",
+   "clause": "(a) the destination is absent",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM."
+   ],
+   "expected": "check a destination"
+  },
+  {
+   "name": "trip_last_day_missing",
+   "clause": "(a) a trip's last weekday is required when present",
+   "rows": [
+    {
+     "kind": "trip",
+     "weekday": "Monday",
+     "time": null,
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": "Wednesday",
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You are traveling to Fixtureville from Monday."
+   ],
+   "expected": "check a weekday"
+  },
+  {
+   "name": "invented_weekday",
+   "clause": "(b) a weekday not on the sheet",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville, back Saturday."
+   ],
+   "expected": "check b weekday"
+  },
+  {
+   "name": "invented_weekday_lower_case",
+   "clause": "(b) weekday words are found in any case",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville, back saturday."
+   ],
+   "expected": "check b weekday"
+  },
+  {
+   "name": "invented_number",
+   "clause": "(b) a digit run not on the sheet",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville from gate 12."
+   ],
+   "expected": "check b number"
+  },
+  {
+   "name": "number_from_title_passes",
+   "clause": "(b) a title's digits are on the sheet",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture 3 review",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have the Fixture 3 review on Friday at 5 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "please_alone_fails",
+   "clause": "(c) ruled fixture: 'please' in the script, not on the sheet",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville, so please note it."
+   ],
+   "expected": "check c phrase"
+  },
+  {
+   "name": "pleasant_destination_passes",
+   "clause": "(c) ruled fixture: word boundaries - 'Pleasant' is not 'please'",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Pleasant Sample",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Pleasant Sample."
+   ],
+   "expected": null
+  },
+  {
+   "name": "reminder_title_repeated_passes",
+   "clause": "(c) ruled fixture: a phrase that is on the sheet does not fail the script",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Reminder sync",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have Reminder sync on Friday at 5 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "reminder_not_on_sheet_fails",
+   "clause": "(c) the same word with no title carrying it",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "A reminder that you have a Friday flight at 2:24 PM to Fixtureville."
+   ],
+   "expected": "check c phrase"
+  },
+  {
+   "name": "curly_apostrophe_folded",
+   "clause": "(c) a curly apostrophe is folded before matching",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville, don’t forget it."
+   ],
+   "expected": "check c phrase"
+  },
+  {
+   "name": "relative_tomorrow_fails",
+   "clause": "ruling 8: a relative day word not on the sheet",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville, and nothing tomorrow."
+   ],
+   "expected": "check c relative"
+  },
+  {
+   "name": "relative_on_sheet_passes",
+   "clause": "ruling 8: the same exception - the title carries the word",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Tonight Show taping",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have the Tonight Show taping on Friday at 5 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "preamble_without_period",
+   "clause": "(d) every line ends in a period",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    },
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "Here is the script:",
+    "You have a Friday flight at 2:24 PM to Fixtureville and Sample dinner at 5 PM."
+   ],
+   "expected": "check d period"
+  },
+  {
+   "name": "greeting_repeated",
+   "clause": "(d) code writes the greeting; the model must not",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    },
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "5 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "Good evening Nick.",
+    "You have a Friday flight at 2:24 PM to Fixtureville and Sample dinner at 5 PM."
+   ],
+   "expected": "check d greeting"
+  },
+  {
+   "name": "more_lines_than_items",
+   "clause": "(d) no more lines than items",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville.",
+    "That is the only item on Friday."
+   ],
+   "expected": "check d lines"
+  },
+  {
+   "name": "empty_reply",
+   "clause": "(d) at least one line",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [],
+   "expected": "empty"
+  },
+  {
+   "name": "invented_clock_beside_real",
+   "clause": "(b) clock, ruled fixture: an invented '2 PM' beside the real '2:24 PM' - both digit runs are on the sheet, the clock is not",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville, boarding at 2 PM."
+   ],
+   "expected": "check b clock"
+  },
+  {
+   "name": "clock_no_space_beside_real",
+   "clause": "(b) clock, ruled fixture: '6PM' with no space is not the sheet's '6 PM', compared as the whole string",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "6 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have Sample dinner on Friday at 6 PM, seated by 6PM."
+   ],
+   "expected": "check b clock"
+  },
+  {
+   "name": "clock_no_space_alone",
+   "clause": "the same '6PM' with no real clock beside it fails earlier, at (a): the sheet's '6 PM' is absent",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "6 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have Sample dinner on Friday at 6PM."
+   ],
+   "expected": "check a clock"
+  },
+  {
+   "name": "clock_dotted_beside_real",
+   "clause": "(b) clock: the dotted form is clock-shaped too",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "6 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have Sample dinner on Friday at 6 PM, seated by 6 p.m."
+   ],
+   "expected": "check b clock"
+  },
+  {
+   "name": "clock_lower_case_beside_real",
+   "clause": "(b) clock: AM or PM in any case is clock-shaped; '6 pm' is not the sheet's bytes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "6 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Sample dinner",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have Sample dinner on Friday at 6 PM, seated by 6 pm."
+   ],
+   "expected": "check b clock"
+  },
+  {
+   "name": "clock_in_title_passes",
+   "clause": "(b) clock, ruled fixture: a clock the title carries is on the sheet and may be repeated as written",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "6 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture 3pm sync",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have the Fixture 3pm sync on Friday at 6 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "clock_in_title_respaced_fails",
+   "clause": "(b) clock: the title's '3pm' respaced to '3 PM' is not on the sheet - whole string, own bytes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": "6 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture 3pm sync",
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have the Fixture 3 PM sync on Friday at 6 PM."
+   ],
+   "expected": "check b clock"
+  },
+  {
+   "name": "clock_minutes_not_a_second_clock",
+   "clause": "(b) clock: the '24 PM' inside '2:24 PM' is not matched as a clock of its own",
+   "rows": [
+    {
+     "kind": "flight",
+     "weekday": "Friday",
+     "time": "2:24 PM",
+     "zone": null,
+     "destination": "Fixtureville",
+     "title": null,
+     "through": null,
+     "open_ended": false
+    }
+   ],
+   "lines": [
+    "You have a Friday flight at 2:24 PM to Fixtureville."
+   ],
+   "expected": null
+  }
+ ]
+}
