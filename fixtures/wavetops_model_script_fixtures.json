@@ -1,12 +1,12 @@
 {
- "about": "Wave-tops model-script fixtures (ruled 2026-11-24). Self-authored: every name, code, place and address is invented (QXA and QXB are not airport codes in the snapshot); dates are synthetic, run date Sunday 2027-03-07. 'overrides' is the in-memory destination table the test swaps in and restores; no file is written. 'cases' are groupings in the persisted (_log_records) shape, run through wavetops.script() - the pattern writer, which reads the same fact sheet the model writer does - for the rental silence (R2) and its discriminator; their expectations are pinned from a captured run, never typed ahead of it. 'check_cases' feed fact-sheet rows and candidate script lines to wavetops.check_script; their expected reasons are written from the 2026-11-24 rulings before the run.",
+ "about": "Wave-tops model-script fixtures (ruled 2026-11-24). Self-authored: every name, code, place and address is invented (QXA and QXB are not airport codes in the snapshot); dates are synthetic, run date Sunday 2027-03-07. 'overrides' is the in-memory destination table the test swaps in and restores; no file is written. 'cases' are groupings in the persisted (_log_records) shape, run through wavetops.script() - the pattern writer, which reads the same fact sheet the model writer does - for the rental silence (R2) and its discriminator; their expectations are pinned from a captured run, never typed ahead of it. 'check_cases' feed fact-sheet rows and candidate script lines to wavetops.check_script; their expected reasons are written from the 2026-11-24 rulings before the run. Re-pinned 2026-11-25 (R1-R19): the rental silence is select()'s and applies before the cap (R11); check cases added for the multi-day and under-way event rows and for R13's shared-name sentence.",
  "overrides": {
   "QXB": "Fixtureville"
  },
  "cases": [
   {
    "name": "rental_silent_same_day",
-   "clause": "R2: a rental on a spoken day that has a flight is left off the sheet; logged RENTAL SILENCED 1",
+   "clause": "R3: a rental on a spoken day that has a flight is silenced by select(), before the cap; logged RENTAL SILENCED 1",
    "run_date": "2027-03-07",
    "grouping": {
     "groups": [
@@ -79,14 +79,14 @@
      "Monday at 5 PM, flight to Fixtureville."
     ],
     "log": [
-     "WAVETOPS SELECT 2 of 2 groups",
-     "WAVETOPS RENTAL SILENCED 1"
+     "WAVETOPS RENTAL SILENCED 1",
+     "WAVETOPS SELECT 1 of 2 groups"
     ]
    }
   },
   {
    "name": "rental_spoken_no_flight",
-   "clause": "R2: no flight in the script - the rental is spoken as a meeting",
+   "clause": "R3: no flight on its day - the rental is spoken as a meeting",
    "run_date": "2027-03-07",
    "grouping": {
     "groups": [
@@ -136,7 +136,7 @@
   },
   {
    "name": "rental_spoken_different_day",
-   "clause": "R2 accepted wart: flight Monday, drop-off Tuesday - the rental is spoken",
+   "clause": "R3 accepted wart: flight Monday, drop-off Tuesday - the rental is spoken",
    "run_date": "2027-03-07",
    "grouping": {
     "groups": [
@@ -318,14 +318,14 @@
      "Monday at 5 PM, flight to Fixtureville."
     ],
     "log": [
-     "WAVETOPS SELECT 3 of 3 groups",
-     "WAVETOPS RENTAL SILENCED 2"
+     "WAVETOPS RENTAL SILENCED 2",
+     "WAVETOPS SELECT 1 of 3 groups"
     ]
    }
   },
   {
-   "name": "rental_silent_at_cap",
-   "clause": "option A: select() returned CAP groups and one is a silenced rental - SILENCED 1 and SILENCED AT CAP 1; the slot is not refilled",
+   "name": "rental_silent_holds_no_slot",
+   "clause": "R11 (replaces 11/24 option A): a flight, a silenced rental and four meetings - the silenced rental holds no slot, so all four meetings are spoken; RENTAL SILENCED 1, no CAP CUT",
    "run_date": "2027-03-07",
    "grouping": {
     "groups": [
@@ -374,6 +374,16 @@
        "r5"
       ],
       "primary": "r5",
+      "container": null,
+      "render_zone": null,
+      "end_render_zone": null,
+      "conflicts": []
+     },
+     {
+      "members": [
+       "r6"
+      ],
+      "primary": "r6",
       "container": null,
       "render_zone": null,
       "end_render_zone": null,
@@ -476,6 +486,25 @@
       "summary": "Example briefing",
       "location": "1 Example Way, Fixtureville, EX 00000",
       "identifiers": []
+     },
+     {
+      "id": "r6",
+      "ref": [
+       "event",
+       "fx-r6",
+       "single"
+      ],
+      "kind": "event",
+      "source": "calendar",
+      "date": "2027-03-12",
+      "time": "09:00",
+      "zone": "America/New_York",
+      "end_time": "10:00",
+      "end_zone": "America/New_York",
+      "end_date": null,
+      "summary": "Fixture wrap-up",
+      "location": "1 Example Way, Fixtureville, EX 00000",
+      "identifiers": []
      }
     ]
    },
@@ -485,12 +514,12 @@
      "Monday at 5 PM, flight to Fixtureville.",
      "Tuesday at 9 AM, Fixture review.",
      "Wednesday at 9 AM, Sample lunch.",
-     "Thursday at 9 AM, Example briefing."
+     "Thursday at 9 AM, Example briefing.",
+     "Friday at 9 AM, Fixture wrap-up."
     ],
     "log": [
-     "WAVETOPS SELECT 5 of 5 groups",
      "WAVETOPS RENTAL SILENCED 1",
-     "WAVETOPS RENTAL SILENCED AT CAP 1"
+     "WAVETOPS SELECT 5 of 6 groups"
     ]
    }
   },
@@ -1656,6 +1685,238 @@
     "You have a Friday flight at 2:24 PM to Fixtureville."
    ],
    "expected": null
+  },
+  {
+   "name": "good_entry_span",
+   "clause": "multi-day entry: both weekdays present - passes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Tuesday",
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture class",
+     "through": "Thursday",
+     "open_ended": false,
+     "under_way": false
+    }
+   ],
+   "lines": [
+    "You have Fixture class from Tuesday through Thursday."
+   ],
+   "expected": null
+  },
+  {
+   "name": "entry_span_last_day_missing",
+   "clause": "check (a): a multi-day entry's last weekday is missing",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Tuesday",
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture class",
+     "through": "Thursday",
+     "open_ended": false,
+     "under_way": false
+    }
+   ],
+   "lines": [
+    "You have Fixture class starting Tuesday."
+   ],
+   "expected": "check a weekday"
+  },
+  {
+   "name": "good_entry_open_ended",
+   "clause": "multi-day entry past the window: its first day only - passes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Friday",
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture class",
+     "through": null,
+     "open_ended": true,
+     "under_way": false
+    }
+   ],
+   "lines": [
+    "You have Fixture class starting Friday."
+   ],
+   "expected": null
+  },
+  {
+   "name": "good_entry_under_way",
+   "clause": "entry under way: its last weekday present - passes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Thursday",
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture class",
+     "through": null,
+     "open_ended": false,
+     "under_way": true
+    }
+   ],
+   "lines": [
+    "Your Fixture class continues through Thursday."
+   ],
+   "expected": null
+  },
+  {
+   "name": "entry_under_way_day_missing",
+   "clause": "check (a): an entry under way spoken without its last weekday",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Thursday",
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture class",
+     "through": null,
+     "open_ended": false,
+     "under_way": true
+    }
+   ],
+   "lines": [
+    "Your Fixture class continues this week."
+   ],
+   "expected": "check a weekday"
+  },
+  {
+   "name": "entry_under_way_invented_start",
+   "clause": "check (b): an entry under way given a start day that is not on the sheet",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Thursday",
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture class",
+     "through": null,
+     "open_ended": false,
+     "under_way": true
+    }
+   ],
+   "lines": [
+    "Your Fixture class runs Monday through Thursday."
+   ],
+   "expected": "check b weekday"
+  },
+  {
+   "name": "good_shared_name_one_event",
+   "clause": "R13: two same-day items sharing a name spoken as one event with both times, on one line - passes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Monday",
+     "time": "9 AM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture training",
+     "through": null,
+     "open_ended": false,
+     "under_way": false
+    },
+    {
+     "kind": "meeting",
+     "weekday": "Monday",
+     "time": "1 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture training",
+     "through": null,
+     "open_ended": false,
+     "under_way": false
+    }
+   ],
+   "lines": [
+    "On Monday you have Fixture training, with sessions at 9 AM and 1 PM."
+   ],
+   "expected": null
+  },
+  {
+   "name": "shared_name_time_dropped",
+   "clause": "R13: every time is still said - the merged sentence drops the second time",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": "Monday",
+     "time": "9 AM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture training",
+     "through": null,
+     "open_ended": false,
+     "under_way": false
+    },
+    {
+     "kind": "meeting",
+     "weekday": "Monday",
+     "time": "1 PM",
+     "zone": null,
+     "destination": null,
+     "title": "Fixture training",
+     "through": null,
+     "open_ended": false,
+     "under_way": false
+    }
+   ],
+   "lines": [
+    "On Monday you have Fixture training at 9 AM."
+   ],
+   "expected": "check a clock"
+  },
+  {
+   "name": "good_entry_under_way_past_week",
+   "clause": "part 4: an entry under way past the window has no weekday to require - passes",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": null,
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture course",
+     "through": null,
+     "open_ended": true,
+     "under_way": true
+    }
+   ],
+   "lines": [
+    "Your Fixture course continues past the week."
+   ],
+   "expected": null
+  },
+  {
+   "name": "entry_under_way_past_week_invented_day",
+   "clause": "part 4, check (b): the same row given a day that is not on the sheet",
+   "rows": [
+    {
+     "kind": "meeting",
+     "weekday": null,
+     "time": null,
+     "zone": null,
+     "destination": null,
+     "title": "Fixture course",
+     "through": null,
+     "open_ended": true,
+     "under_way": true
+    }
+   ],
+   "lines": [
+    "Your Fixture course continues through Friday."
+   ],
+   "expected": "check b weekday"
   }
  ]
 }

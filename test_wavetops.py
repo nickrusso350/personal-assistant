@@ -6,21 +6,20 @@ file-shape rulings 2026-11-07). Self-authored fixtures only; this script
 never opens the real groupings directory, touches no state, sends nothing,
 and writes nothing.
 
-Default mode prints, per case, the selected groups by primary id in order,
-the evidence groups by primary id (select() returns (chosen, evidence) since
-2026-11-11), and the WAVETOPS SELECT line, plus an md5 over the result lines.
-It also prints no_flight_trip(grouping, run_date, chosen) per case as
-"trip" (a [destination, first_date, last_date] list, or None). Each case's
-"expected" (selected primaries, evidence primaries, trip, and log lines) is
-checked exactly - a pin missing "evidence" or "trip" fails; a mismatch
-prints FAIL, and a case with no "expected" prints UNPINNED and also counts as
-a failure, so a case added without a pin cannot pass silently. Any failure
-exits non-zero. Expectations were pinned 2026-11-07 from a captured run Nick
-read, never typed ahead of it.
+Default mode prints, per case, the selected items in rank order and the
+silenced items in file order - each as "<kind> <id of the record it speaks
+from>" (select() returns (chosen, silenced), lists of items, since
+2026-11-25) - and select()'s log lines, plus an md5 over the result lines.
+Each case's "expected" (selected, silenced, and log lines) is checked
+exactly - a pin missing a key fails; a mismatch prints FAIL, and a case
+with no "expected" prints UNPINNED and also counts as a failure, so a case
+added without a pin cannot pass silently. Any failure exits non-zero.
+Expectations are pinned from a captured run read before pinning, never
+typed ahead of it (first 2026-11-07; re-pinned 2026-11-11 and 2026-11-25).
 
 --stub runs the 10/20 stub check: every clause test is replaced so it admits
-everything (_is_travel -> True, _is_task -> False, _has_place -> True,
-_is_lodging -> False) and
+everything as a flight (_is_travel -> True, _is_task -> False,
+_is_task_title -> False) and
 each case's stubbed selection is compared with its real one. Until the
 expectations are pinned, "FAIL under stub" means the stubbed selection
 differs from the real one; a case that stays the same under the stub is one
@@ -61,31 +60,28 @@ def provenance():
 
 
 def run(case):
-    """(selected primary ids, evidence primary ids, trip, captured log lines)
-    for one case. select() returns (chosen, evidence) since 2026-11-11; trip
-    is no_flight_trip(grouping, run_date, chosen) as a list, or None."""
+    """(selected items, silenced items, captured log lines) for one case.
+    An item prints as "<kind> <id of the record it speaks from>"."""
     out = io.StringIO()
     run_date = datetime.date.fromisoformat(case["run_date"])
     with contextlib.redirect_stdout(out):
-        chosen, evidence = wavetops.select(case["grouping"], run_date)
-        trip = wavetops.no_flight_trip(case["grouping"], run_date, chosen)
-    return ([g["primary"] for g in chosen], [g["primary"] for g in evidence],
-            None if trip is None else list(trip), out.getvalue().splitlines())
+        chosen, silenced = wavetops.select(case["grouping"], run_date)
+    return ([f"{i['kind']} {i['record']['id']}" for i in chosen],
+            [f"{i['kind']} {i['record']['id']}" for i in silenced],
+            out.getvalue().splitlines())
 
 
 @contextlib.contextmanager
 def admit_everything():
-    saved = (wavetops._is_travel, wavetops._is_task, wavetops._has_place,
-             wavetops._is_lodging)
+    saved = (wavetops._is_travel, wavetops._is_task, wavetops._is_task_title)
     wavetops._is_travel = lambda group, by_id: True
     wavetops._is_task = lambda primary: False
-    wavetops._has_place = lambda primary: True
-    wavetops._is_lodging = lambda record: False
+    wavetops._is_task_title = lambda record: False
     try:
         yield
     finally:
-        (wavetops._is_travel, wavetops._is_task, wavetops._has_place,
-         wavetops._is_lodging) = saved
+        (wavetops._is_travel, wavetops._is_task,
+         wavetops._is_task_title) = saved
 
 
 def main():
@@ -94,24 +90,23 @@ def main():
     stub = "--stub" in sys.argv[1:]
     results, failures = [], 0
     for case in cases:
-        selected, evidence, trip, lines = run(case)
+        selected, silenced, lines = run(case)
         if stub:
             with admit_everything():
-                stubbed, _, _, stub_lines = run(case)
+                stubbed, _, stub_lines = run(case)
             verdict = "SAME under stub" if stubbed == selected else "FAIL under stub"
             print(f"{case['name']}: {verdict}")
             print(f"    real: {selected}  {lines}")
             print(f"    stub: {stubbed}  {stub_lines}")
             continue
-        result = (f"{case['name']}: {selected} | evidence {evidence} | "
-                  f"trip {trip} | {' / '.join(lines)}")
+        result = (f"{case['name']}: {selected} | silenced {silenced} | "
+                  f"{' / '.join(lines)}")
         results.append(result)
         want = case.get("expected")
         if want is None:
             status = "UNPINNED"
             failures += 1
-        elif want == {"selected": selected, "evidence": evidence, "trip": trip,
-                      "log": lines}:
+        elif want == {"selected": selected, "silenced": silenced, "log": lines}:
             status = "PASS"
         else:
             status = "FAIL"

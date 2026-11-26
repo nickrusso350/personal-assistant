@@ -7,12 +7,12 @@ only; this script never opens the real groupings directory, touches no
 state, calls no API, sends nothing, and writes nothing.
 
 Per case it prints the script's lines and the log lines script() printed
-(WAVETOPS SELECT, DESTINATION DROPPED, ZONE UNKNOWN, CAP DROPPED, and
-destinations' own DESTINATION UNKNOWN). Each case's "expected" ({"lines",
+(WAVETOPS SELECT, RENTAL SILENCED, STAY SILENCED, CAP CUT, DESTINATION
+DROPPED, ZONE UNKNOWN, and destinations' own DESTINATION UNKNOWN). Each case's "expected" ({"lines",
 "log"}) is checked exactly; a mismatch prints FAIL, and a case with no
 "expected" prints UNPINNED and also counts as a failure, so a case added
 without a pin cannot pass silently. "line_cases" feed one fact-sheet row to
-wavetops._line, for rows select() cannot reach today. Any failure exits
+wavetops._line, for rows the cases do not reach. Any failure exits
 non-zero. An md5 over the result lines closes the run.
 
 The fixtures' airport codes are invented and are in neither destination
@@ -20,11 +20,10 @@ table, so for the run destinations._overrides is replaced in memory by the
 fixture file's "overrides" table and restored afterwards; the run prints
 whether the real loader is back. No file is written.
 
-Identity check: fact_sheet() finds a chosen group's file position by
-id(), which holds because select() appends the group objects it iterates
-(wavetops.select: "for index, group in enumerate(groups)" ... the same
-`group` goes into travel/other) and never copies them. Every case asserts
-it: each group select() returns `is` an element of grouping["groups"].
+Identity check: fact_sheet() finds a chosen item's file position by the
+id() of its group, which holds because select() puts the group objects it
+iterates into its items and never copies them. Every case asserts it: the
+group of each item select() returns `is` an element of grouping["groups"].
 
 Usage: python3 test_wavetops_script.py [--fixture PATH]
 """
@@ -80,9 +79,9 @@ def run(case):
     with contextlib.redirect_stdout(out):
         lines = wavetops.script(case["grouping"], run_date)
     with contextlib.redirect_stdout(io.StringIO()):
-        chosen, evidence = wavetops.select(case["grouping"], run_date)
+        chosen, silenced = wavetops.select(case["grouping"], run_date)
     groups = case["grouping"].get("groups") or []
-    same = all(any(c is g for g in groups) for c in chosen + evidence)
+    same = all(any(c["group"] is g for g in groups) for c in chosen + silenced)
     return lines, out.getvalue().splitlines(), same
 
 

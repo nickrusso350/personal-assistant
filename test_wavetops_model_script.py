@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the model-written wave-tops script and the rental silence
-(ruled 2026-11-24), on fixtures/wavetops_model_script_fixtures.json.
+(ruled 2026-11-24; silence before the cap, event spans and prompt rules 6
+and 7 ruled 2026-11-25), on fixtures/wavetops_model_script_fixtures.json.
 
 Offline and self-authored: invented data only, never real mail, never the
 API. anthropic.Anthropic is replaced by a recording stub and
@@ -21,7 +22,11 @@ placed in an otherwise passing script and must fail with its own reason.
 
 Part three - what the model sees. The sheet text for the model_week case is
 pinned; the prompt is the approved text with that sheet in place, and holds
-no record id, ref, date, raw clock or location.
+no record id, ref, date, raw clock or location. The event rows added
+2026-11-25 (a multi-day entry, one past the window, one under way, one
+under way past the window) have
+their sheet text pinned, and rules 5, 6, 7 and 10 of the prompt are compared
+with the ruled text (R19, R20, R21), typed here, not imported.
 
 Part four - the writer. model_script() over a stubbed client: passes first
 try; fails the check then passes; fails twice and falls back to the pattern
@@ -79,6 +84,24 @@ EXPECTED_SHEET = ("1. event | day: Monday | time: 9 AM | title: Fixture review\n
 EXPECTED_TRIP_SHEET = ("1. trip | first day: Monday | last day: Wednesday | destination: Fixtureville\n"
                        "2. trip | first day: Saturday | continues past the week\n"
                        "3. flight | day: Friday")
+EXPECTED_SPAN_SHEET = ("1. event | continues through: Thursday | title: Fixture class\n"
+                       "2. event | day: Tuesday | last day: Thursday | title: Fixture workshop\n"
+                       "3. event | day: Friday | continues past the week | title: Fixture course\n"
+                       "4. event | continues past the week | title: Fixture seminar")
+RULE_5 = ("5. A title may be shortened to its subject and reworded into natural speech. "
+          "Keep people's names. Leave out booking and confirmation codes, reference "
+          "numbers, dates inside the title, and anything in parentheses. Add no fact that "
+          "is not in the title.")
+RULE_10 = ("10. A title that names something to do is an entry on the calendar, not an "
+           "instruction to the listener: state it as an entry, with its day and time. "
+           "Never write \"you need to\" or \"a reminder to\".")
+RULE_6 = ("6. Items on the same day may be joined in one sentence. When items on the same "
+          "day share a name, speak them as one event and give each part with its time; "
+          "every time on the sheet is still said. Items on different days are separate "
+          "sentences.")
+RULE_7 = ("7. A trip item is travel with no flight on its first day: say you are traveling "
+          "to its destination, from its first day through its last day. When it is marked "
+          "\"continues past the week\", say from its first day only.")
 FORMAT_NOTE = ("Your previous script was rejected for its format. Reply with the script "
                "only: one sentence per line, each ending in a period, no greeting, and no "
                "more lines than the fact sheet has items.")
@@ -219,6 +242,29 @@ def part_three(week, tally):
     tally.record("sheet text, trip and bare rows", trip_sheet == EXPECTED_TRIP_SHEET, trip_sheet)
     for line in trip_sheet.splitlines():
         print(f"    | {line}")
+    span_rows = [
+        {**blank, "kind": "meeting", "weekday": "Thursday", "title": "Fixture class",
+         "open_ended": False, "under_way": True},
+        {**blank, "kind": "meeting", "weekday": "Tuesday", "through": "Thursday",
+         "title": "Fixture workshop", "open_ended": False, "under_way": False},
+        {**blank, "kind": "meeting", "weekday": "Friday", "title": "Fixture course",
+         "open_ended": True, "under_way": False},
+        {**blank, "kind": "meeting", "weekday": None, "title": "Fixture seminar",
+         "open_ended": True, "under_way": True},
+    ]
+    span_sheet = wavetops._sheet_text(span_rows)
+    tally.record("sheet text, multi-day and under-way event rows",
+                 span_sheet == EXPECTED_SPAN_SHEET, span_sheet)
+    for line in span_sheet.splitlines():
+        print(f"    | {line}")
+    rules = wavetops.SCRIPT_PROMPT.splitlines()
+    ruled = [RULE_6 in rules, RULE_7 in rules]
+    tally.record("prompt rules 6 and 7 are the ruled text (R19)", all(ruled), ruled)
+    ruled = [RULE_5 in rules, RULE_10 in rules,
+             [r[:3] for r in rules if r[:1].isdigit()] ==
+             ["1. ", "2. ", "3. ", "4. ", "5. ", "6. ", "7. ", "8. ", "9. ", "10."]]
+    tally.record("prompt rules 5 and 10 are the ruled text (R20, R21); ten rules in order",
+                 all(ruled), ruled)
     prompt = wavetops._script_prompt(rows)
     whole = prompt == wavetops.SCRIPT_PROMPT.replace("{sheet}", EXPECTED_SHEET)
     tally.record("prompt is the approved text with the sheet in place", whole, whole)
